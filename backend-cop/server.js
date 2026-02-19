@@ -47,6 +47,9 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(3000, () => {
-  console.log('🚓 Real-Shape Cop is listening on Port 3000!');
+// Ask the cloud for a port, or use 3000 at home!
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, () => {
+  console.log(`🚓 Cloud Cop is awake and listening on Port ${PORT}!`);
 });

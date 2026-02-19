@@ -4,17 +4,14 @@ const http = require('http');
 const { Server } = require('socket.io');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+// We need this for the "Search" part!
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+
 const app = express();
 const server = http.createServer(app);
-
-// 🚀 THE ADVANCED CLOUD GATE (CORS FIX) 🚀
 const io = new Server(server, { 
-  cors: { 
-    origin: "*", 
-    methods: ["GET", "POST"],
-    credentials: true
-  },
-  transports: ['websocket', 'polling'] // This helps bypass cloud firewalls!
+  cors: { origin: "*", methods: ["GET", "POST"], credentials: true },
+  transports: ['websocket', 'polling']
 });
 
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -24,40 +21,45 @@ io.on('connection', (socket) => {
   console.log('👷 Master Builder connected!', socket.id);
 
   socket.on('build_house', async (theMessage) => {
-    socket.emit('cop_reply', 'Searching the Official 3D warehouse...');
+    socket.emit('cop_reply', 'AI is deciding: Search or Generate?');
 
     try {
-      // 🧠 NEW CATALOG WITH BULLETPROOF URLS 🧠
-      const prompt = `
-        You are a 3D building architect. The user wants to build: "${theMessage}".
-        We have a catalog of custom 3D models available at these URLs:
-        - "spaceship": "https://pictopulse-monorepo.vercel.app/ship.glb"
-        - "pizza": "https://pictopulse-monorepo.vercel.app/pizza.glb"
-        - "duck": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF/Duck.gltf"
-
-        Pick the URL that best matches what the user typed. 
-        Reply ONLY with a raw JSON object: {"url": "chosen_url_here"}
-        Do not use markdown or extra text.
-      `;
+      const prompt = `User wants: "${theMessage}".
+      Decide: Should we "SEARCH" for a pre-made model (animals, vehicles, complex props) or "GENERATE" a custom math shape (buildings, blocks, spheres, colored walls)?
+      
+      Reply ONLY in raw JSON:
+      {
+        "mode": "SEARCH" or "GENERATE",
+        "searchKeyword": "best single word for searching",
+        "mathParams": { "shape": "box" or "sphere", "width": 1-10, "height": 1-15, "color": "hexCode" }
+      }`;
 
       const result = await brain.generateContent(prompt);
-      const aiResponse = result.response.text();
-      
-      const aiBlueprint = JSON.parse(aiResponse);
+      const decision = JSON.parse(result.response.text());
 
-      socket.emit('draw_3d_house', aiBlueprint);
-      socket.emit('cop_reply', 'Model loaded!');
+      if (decision.mode === "SEARCH") {
+        socket.emit('cop_reply', `Searching warehouse for: ${decision.searchKeyword}...`);
+        const response = await fetch(`https://poly.pizza/api/search?q=${decision.searchKeyword}`);
+        const data = await response.json();
+
+        if (data.results && data.results.length > 0) {
+          socket.emit('draw_3d_house', { type: 'model', url: data.results[0].url });
+          socket.emit('cop_reply', `Found 3D ${decision.searchKeyword}!`);
+        } else {
+          socket.emit('cop_reply', 'Not in warehouse. Switching to math...');
+          socket.emit('draw_3d_house', { type: 'math', params: decision.mathParams });
+        }
+      } else {
+        socket.emit('cop_reply', 'Generating custom architecture...');
+        socket.emit('draw_3d_house', { type: 'math', params: decision.mathParams });
+      }
 
     } catch (error) {
-      console.error("Brain freeze:", error);
-      socket.emit('cop_reply', 'Oops! The AI had a brain freeze.');
+      console.error("System Error:", error);
+      socket.emit('cop_reply', 'Brain freeze! Try again.');
     }
   });
 });
 
-// Ask the cloud for a port, or use 3000 at home!
 const PORT = process.env.PORT || 3000;
-
-server.listen(PORT, () => {
-  console.log(`🚓 Cloud Cop is awake and listening on Port ${PORT}!`);
-});
+server.listen(PORT, () => console.log(`🚓 Cop active on Port ${PORT}`));

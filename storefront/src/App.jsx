@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, Environment, useGLTF } from '@react-three/drei';
 import { io } from 'socket.io-client'; 
 
-const socket = io('http://localhost:3000');
+const socket = io('https://pictopulse-backend.onrender.com');
 
 function RealShape({ url }) {
   const { scene } = useGLTF(url);

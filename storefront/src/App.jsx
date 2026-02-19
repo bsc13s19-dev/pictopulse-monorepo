@@ -5,7 +5,7 @@ import { io } from 'socket.io-client';
 // We are bringing in the paint!
 import './App.css'; 
 
-const socket = io('https://pictopulse-monorepo.vercel.app'); // Keep your real Vercel URL!
+const socket = io('https://pictopulse-backend.onrender.com'); // Keep your real Vercel URL!
 
 function RealShape({ url }) {
   const { scene } = useGLTF(url);

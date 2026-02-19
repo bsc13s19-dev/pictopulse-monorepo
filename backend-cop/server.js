@@ -21,11 +21,10 @@ io.on('connection', (socket) => {
       // 🧠 NEW CATALOG WITH BULLETPROOF URLS 🧠
       const prompt = `
         You are a 3D building architect. The user wants to build: "${theMessage}".
-        We have a catalog of 4 real 3D models available at these URLs:
-        - "duck" (or bird/animal): "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF/Duck.gltf"
-        - "fox" (or dog/pet): "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Fox/glTF/Fox.gltf"
-        - "avocado" (or food): "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Avocado/glTF/Avocado.gltf"
-        - "lantern" (or lamp/building): "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF/Lantern.gltf"
+        We have a catalog of custom 3D models available at these URLs:
+        - "spaceship" (or rocket, ship, flying): "https://YOUR_VERCEL_LINK.vercel.app/spaceship.glb"
+        - "pizza" (or food, meal): "https://YOUR_VERCEL_LINK.vercel.app/pizza.glb"
+        - "duck" (or bird): "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF/Duck.gltf"
 
         Pick the URL that best matches what the user typed. If none of them are a good match, pick the "duck" URL.
         Reply ONLY with a raw JSON object containing one key: "url" (the string of the chosen URL).

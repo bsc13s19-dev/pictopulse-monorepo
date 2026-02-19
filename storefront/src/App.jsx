@@ -1,15 +1,33 @@
-import React, { useState, useEffect, Suspense } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment, useGLTF } from '@react-three/drei';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, Grid, Environment, useGLTF, PerspectiveCamera } from '@react-three/drei';
 import { io } from 'socket.io-client'; 
-// We are bringing in the paint!
 import './App.css'; 
+import * as THREE from 'three';
 
-const socket = io('https://pictopulse-backend.onrender.com'); // Keep your real Vercel URL!
+const socket = io('https://pictopulse-backend.onrender.com'); 
 
 function RealShape({ url }) {
   const { scene } = useGLTF(url);
   return <primitive object={scene} scale={1.5} position={[0, 0, 0]} />;
+}
+
+// 🎥 THE CINEMATIC CAMERA BRAIN
+function CameraDirector({ isRecording }) {
+  const cameraRef = useRef();
+
+  useFrame((state) => {
+    if (isRecording) {
+      const time = state.clock.getElapsedTime();
+      // The camera will slowly move in a "swooping" motion
+      state.camera.position.x = Math.sin(time * 0.5) * 7;
+      state.camera.position.z = Math.cos(time * 0.5) * 7;
+      state.camera.position.y = Math.sin(time * 0.2) * 2 + 4;
+      state.camera.lookAt(0, 0, 0);
+    }
+  });
+
+  return null;
 }
 
 export default function App() {
@@ -19,11 +37,10 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
 
   const narrateMovie = () => {
-    const script = new SpeechSynthesisUtterance("Action! Welcome to your cinematic 3D tour!");
+    const script = new SpeechSynthesisUtterance("Initializing cinematic sequence. Recording in progress.");
     const voices = window.speechSynthesis.getVoices();
-    const femaleVoice = voices.find(v => v.name.includes('Female') || v.name.includes('Zira') || v.name.includes('Samantha') || v.name.includes('Google UK English Female'));
+    const femaleVoice = voices.find(v => v.name.includes('Female') || v.name.includes('Zira') || v.name.includes('Samantha'));
     if (femaleVoice) script.voice = femaleVoice;
-    script.rate = 0.9; 
     window.speechSynthesis.speak(script);
   };
 
@@ -43,7 +60,7 @@ export default function App() {
     setIsRecording(true);
     narrateMovie();
 
-    const stream = canvas.captureStream(30);
+    const stream = canvas.captureStream(60); // High quality 60fps
     const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
     const chunks = [];
     recorder.ondataavailable = (e) => chunks.push(e.data);
@@ -53,62 +70,57 @@ export default function App() {
       const videoUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = videoUrl;
-      a.download = 'My_3D_Masterpiece.webm'; 
+      a.download = 'Cinematic_Shot.webm'; 
       a.click();
       setIsRecording(false); 
     };
 
     recorder.start();
-    setTimeout(() => { recorder.stop(); }, 8000);
+    setTimeout(() => { recorder.stop(); }, 8000); // 8-second cinematic shot
   };
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       
-      {/* 🔴 RECORDING LIGHT */}
       {isRecording && (
         <div className="recording-indicator" style={{ position: 'absolute', top: '25px', left: '25px', color: '#ff0055', fontSize: '20px', fontWeight: 'bold', zIndex: 10 }}>
-          🔴 REC
+          🔴 RECORDING CINEMATIC
         </div>
       )}
 
-      {/* 🔮 NEON COP MESSAGE */}
       <div className="glass-panel" style={{ position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', padding: '10px 30px', zIndex: 10 }}>
         <h2 className="neon-text" style={{ margin: 0, fontSize: '18px' }}>{copReply}</h2>
       </div>
 
-      <Canvas camera={{ position: [5, 5, 5], fov: 50 }}>
-        <ambientLight intensity={1.5} />
-        <directionalLight position={[10, 20, 10]} intensity={2} castShadow />
-        <Environment preset="city" />
+      <Canvas shadows camera={{ position: [8, 8, 8], fov: 40 }}>
+        <CameraDirector isRecording={isRecording} />
+        <ambientLight intensity={1} />
+        <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={2} />
+        <Environment preset="night" />
         <Grid infiniteGrid fadeDistance={50} sectionColor="#00ffcc" cellColor="#111" />
         
         <Suspense fallback={null}>
             <RealShape url={modelUrl} />
         </Suspense>
         
-        <OrbitControls makeDefault autoRotate autoRotateSpeed={2.5} />
+        {!isRecording && <OrbitControls makeDefault />}
       </Canvas>
       
-      {/* 🧊 THE GLASSMORPHISM MAGIC BAR 🧊 */}
       <div className="glass-panel" style={{ 
         position: 'absolute', bottom: '40px', left: '50%', transform: 'translateX(-50%)',
-        display: 'flex', gap: '15px', padding: '20px', width: 'auto'
+        display: 'flex', gap: '15px', padding: '20px'
       }}>
          <input 
             className="magic-input"
             type="text" 
-            placeholder="Initialize 3D generation..." 
+            placeholder="What should we film?" 
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            style={{ padding: '15px', width: '300px', borderRadius: '12px', outline: 'none', fontSize: '16px' }}
+            style={{ padding: '15px', width: '250px', borderRadius: '12px' }}
          />
-         <button className="build-btn" onClick={handleBuild} style={{ padding: '0 25px', borderRadius: '12px', border: 'none', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', textTransform: 'uppercase' }}>
-            Initialize
-         </button>
-         
-         <button className="record-btn" onClick={handleRecord} disabled={isRecording} style={{ padding: '0 25px', borderRadius: '12px', border: 'none', fontWeight: 'bold', fontSize: '16px', cursor: isRecording ? 'not-allowed' : 'pointer', textTransform: 'uppercase' }}>
-            {isRecording ? "Capturing..." : "Record"}
+         <button className="build-btn" onClick={handleBuild}>Build</button>
+         <button className="record-btn" onClick={handleRecord} disabled={isRecording}>
+            {isRecording ? "Filming..." : "Cinematic Record"}
          </button>
       </div>
     </div>

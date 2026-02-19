@@ -22,7 +22,7 @@ io.on('connection', (socket) => {
       const prompt = `
         You are a 3D building architect. The user wants to build: "${theMessage}".
         We have a catalog of custom 3D models available at these URLs:
-        - "spaceship" (or rocket, ship, flying): "https://pictopulse-monorepo.vercel.app/spaceship.glb"
+        - "- "spaceship" (or rocket, ship, flying): "https://pictopulse-monorepo.vercel.app/ship.glb""
         - "pizza" (or food, meal): "https://pictopulse-monorepo.vercel.app/pizza.glb"
         - "duck" (or bird): "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF/Duck.gltf"
 

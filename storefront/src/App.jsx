@@ -7,10 +7,11 @@ import './App.css';
 
 const socket = io('https://pictopulse-backend.onrender.com'); 
 
-// 🧱 THE BLOCK COMPONENT
+// 🧱 THE CLEAN TOY BLOCK (Gizmo fixed, no game controls!)
 function SceneItem({ data, isSelected, onSelect, gizmoMode, saveHistory, updateTransform }) {
   const meshRef = useRef();
   let content = null;
+  
   if (data.type === 'model') {
     const { scene } = useGLTF(data.url);
     content = <primitive object={scene.clone()} />;
@@ -27,6 +28,7 @@ function SceneItem({ data, isSelected, onSelect, gizmoMode, saveHistory, updateT
     );
   }
 
+  // 🐛 FIX: Clean, simple math save when you let go of the mouse.
   const handleDragEnd = () => {
     if (meshRef.current) {
       updateTransform(data.id, {
@@ -70,7 +72,7 @@ function CameraDirector({ camView }) {
 // 🌍 MAIN APP
 export default function App() {
   const [prompt, setPrompt] = useState("");
-  const [chatLog, setChatLog] = useState([{ sender: 'ai', text: 'Welcome. Use PC Shortcuts or Mobile PUBG controls!' }]);
+  const [chatLog, setChatLog] = useState([{ sender: 'ai', text: 'Welcome to Pictopulse Pro Studio.' }]);
   const [sceneObjects, setSceneObjects] = useState([]);
   const [historyStack, setHistoryStack] = useState([]); 
   const [selectedId, setSelectedId] = useState(null); 
@@ -89,7 +91,7 @@ export default function App() {
   const undo = () => { if (historyStack.length > 0) { setSceneObjects(historyStack[historyStack.length - 1]); setHistoryStack(prev => prev.slice(0, -1)); } };
   const deleteSelected = () => { if (selectedId) { saveHistory(); setSceneObjects(prev => prev.filter(obj => obj.id !== selectedId)); setSelectedId(null); } };
 
-  // ⌨️ SHORTCUTS
+  // ⌨️ INVISIBLE PRO SHORTCUTS
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT') return; 
@@ -133,31 +135,17 @@ export default function App() {
 
   const updateObjectTransform = (id, newTransform) => { setSceneObjects(prev => prev.map(obj => obj.id === id ? { ...obj, ...newTransform } : obj)); };
 
-  // 🎮 MANUAL MOVEMENT
-  const manualMove = (dir) => {
-    if (!selectedId) return;
-    saveHistory();
-    const speed = 1;
-    setSceneObjects(prev => prev.map(obj => {
-      if (obj.id !== selectedId) return obj;
-      let nx = obj.x || 0, nz = obj.z || 0;
-      if (dir === 'up') nz -= speed; if (dir === 'down') nz += speed;
-      if (dir === 'left') nx -= speed; if (dir === 'right') nx += speed;
-      return { ...obj, x: nx, z: nz };
-    }));
-  };
-
   return (
     <div className="studio-container">
       
-      {/* 🏷️ TOP BAR (ALL 5 TABS RESTORED!) */}
+      {/* 🏷️ TOP BAR */}
       <div className="top-bar">
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
           <button className="toggle-btn" onClick={() => { setLeftOpen(!leftOpen); setRightOpen(false); }}>☰ Menu</button>
           <strong style={{ fontSize: '18px', letterSpacing: '2px', color: '#00ffcc' }}>PICTOPULSE</strong>
         </div>
         
-        {/* Mobile-Friendly Swipeable Tabs */}
+        {/* Swipeable Tabs */}
         <div className="tabs-container">
           <button className={`tab-btn ${activeTab === 'Chat' ? 'active' : ''}`} onClick={() => setActiveTab('Chat')}>1. Chat</button>
           <button className={`tab-btn ${activeTab === '2D' ? 'active' : ''}`} onClick={() => setActiveTab('2D')}>2. 2D Plan</button>
@@ -185,6 +173,10 @@ export default function App() {
           <button className="build-btn" style={{ width: '100%', marginBottom: '15px' }} onClick={() => { setSceneObjects([]); setSelectedId(null); setLeftOpen(false); }}>+ New Project</button>
           <h4 className="sidebar-title">Recent Projects</h4>
           <p style={{ fontSize: '13px', color: '#888', cursor: 'pointer' }}>📁 Cyberpunk City</p>
+        </div>
+        <div className="sidebar-section" style={{ flexGrow: 1 }}>
+          <h4 className="sidebar-title">Settings</h4>
+          <p style={{ fontSize: '12px', color: '#aaa' }}>Voice: <span style={{color: '#00ffcc'}}>Female (Locked)</span></p>
         </div>
       </div>
 
@@ -215,6 +207,14 @@ export default function App() {
              <option value="marble">🏛️ Marble</option>
           </select>
         </div>
+        <div className="sidebar-section">
+          <h4 className="sidebar-title">Tools</h4>
+          <div style={{ display: 'flex', gap: '5px' }}>
+            <button className="toggle-btn" style={{ background: gizmoMode === 'translate' ? '#ff0055' : '#222', flex: 1 }} onClick={() => setGizmoMode('translate')}>Move</button>
+            <button className="toggle-btn" style={{ background: gizmoMode === 'rotate' ? '#ff0055' : '#222', flex: 1 }} onClick={() => setGizmoMode('rotate')}>Rotate</button>
+            <button className="toggle-btn" style={{ background: gizmoMode === 'scale' ? '#ff0055' : '#222', flex: 1 }} onClick={() => setGizmoMode('scale')}>Scale</button>
+          </div>
+        </div>
       </div>
 
       {/* 🎮 3D CANVAS */}
@@ -238,16 +238,6 @@ export default function App() {
           </Suspense>
           <OrbitControls makeDefault minDistance={5} maxDistance={50} />
         </Canvas>
-        
-        {/* 🎮 MOBILE PUBG D-PAD OVERLAY */}
-        {activeTab === '3D' && selectedId && (
-          <div className="mobile-dpad">
-            <button className="dpad-btn dpad-up" onClick={() => manualMove('up')}>W</button>
-            <button className="dpad-btn dpad-left" onClick={() => manualMove('left')}>A</button>
-            <button className="dpad-btn dpad-right" onClick={() => manualMove('right')}>D</button>
-            <button className="dpad-btn dpad-down" onClick={() => manualMove('down')}>S</button>
-          </div>
-        )}
       </div>
 
       {/* 💬 TAB OVERLAYS */}
@@ -270,25 +260,14 @@ export default function App() {
         </div>
       )}
 
-      {/* ⌨️ COMMAND BAR */}
+      {/* ⌨️ COMMAND BAR (Sleek & Clean!) */}
       {(activeTab === 'Chat' || activeTab === '3D') && (
         <div className="floating-command">
-           <div className="command-row">
+           <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'center' }}>
              <button className="toggle-btn">📎</button>
-             <input className="magic-input" placeholder="Type prompt, or 'disable gizmo'" value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleBuild()} />
+             <input className="magic-input" placeholder="Type prompt here..." value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleBuild()} />
              <button className="build-btn" onClick={handleBuild}>Generate</button>
            </div>
-           
-           {/* PC Manual Buttons */}
-           {activeTab === '3D' && selectedId && (
-             <div className="manual-pc-controls">
-                <button className="coord-btn" onClick={() => setGizmoMode('translate')}>Move (G)</button>
-                <button className="coord-btn" onClick={() => setGizmoMode('rotate')}>Rotate (R)</button>
-                <button className="coord-btn" onClick={() => setGizmoMode('scale')}>Scale (S)</button>
-                <button className="coord-btn" onClick={() => undo()}>↩ Undo</button>
-                <button className="coord-btn" onClick={() => deleteSelected()}>🗑️ Del</button>
-             </div>
-           )}
         </div>
       )}
 

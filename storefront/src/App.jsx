@@ -314,7 +314,7 @@ export default function App() {
       {/* ⌨️ COMMAND BAR */}
       {(activeTab === 'Chat' || activeTab === '3D') && (
         <div className="floating-command">
-           <div style={{ display: 'flex', gap: '10px', width: '100%', justify-content: 'center' }}>
+           <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'center' }}>
              <button className="toggle-btn">📎</button>
              <input className="magic-input" placeholder="Type prompt here..." value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleBuild()} />
              <button className="build-btn" onClick={handleBuild}>Generate</button>

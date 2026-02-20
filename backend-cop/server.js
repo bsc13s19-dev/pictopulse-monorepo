@@ -93,39 +93,51 @@ function askSuperBrain(message) {
   return null; 
 }
 
-// 🔌 4. THE DISPATCHER LOGIC
+// 🔌 4. THE DISPATCHER LOGIC (Now Crash-Proof!)
 io.on('connection', (socket) => {
   console.log('👷 Master Builder connected!', socket.id);
 
   socket.on('build_house', async (theMessage) => {
     try {
-      // Step A: Ask the LOCAL SUPER BRAIN first!
       let decision = askSuperBrain(theMessage);
 
       if (decision !== null) {
-        
-        // Did the user just say "Hi"?
         if (decision.mode === "CHAT") {
           socket.emit('cop_reply', decision.text);
-          return; // Stop here, no 3D generation needed!
+          return; 
         }
         
-        // Did the user ask for a math shape?
         if (decision.mode === "GENERATE") {
           socket.emit('cop_reply', `Local Math Engine building a ${decision.mathParams.color} ${decision.mathParams.shape}!`);
           socket.emit('draw_3d_house', { type: 'math', params: decision.mathParams });
           return; 
         } 
         
-        // Did the user ask for a common 3D model?
         if (decision.mode === "SEARCH") {
           socket.emit('cop_reply', `Local Brain fetching 3D model of: ${decision.searchKeyword}...`);
-          const response = await fetch(`https://poly.pizza/api/search?q=${decision.searchKeyword}`);
-          const data = await response.json();
-          if (data.results && data.results.length > 0) {
-            socket.emit('draw_3d_house', { type: 'model', url: data.results[0].url });
-          } else {
-             socket.emit('cop_reply', `Model not found in database.`);
+          
+          // 🛡️ THE SAFETY NET: Check if Poly Pizza blocked us!
+          try {
+            const response = await fetch(`https://poly.pizza/api/search?q=${decision.searchKeyword}`);
+            const textResponse = await response.text(); // Read as raw text first
+            
+            // If it starts with a <, it's an HTML error page!
+            if (textResponse.trim().startsWith('<')) {
+              console.log("Poly Pizza blocked the request!");
+              socket.emit('cop_reply', `3D Warehouse blocked the request. Generating math shape instead.`);
+              socket.emit('draw_3d_house', { type: 'math', params: { shape: 'box', width: 2, height: 2, color: '#ff0055' } });
+              return;
+            }
+
+            const data = JSON.parse(textResponse);
+            if (data.results && data.results.length > 0) {
+              socket.emit('draw_3d_house', { type: 'model', url: data.results[0].url });
+            } else {
+               socket.emit('cop_reply', `Model not found in database.`);
+            }
+          } catch (e) {
+            socket.emit('cop_reply', `Warehouse connection failed. Building box.`);
+            socket.emit('draw_3d_house', { type: 'math', params: { shape: 'box', width: 2, height: 2, color: '#333333' } });
           }
           return; 
         }
@@ -135,33 +147,44 @@ io.on('connection', (socket) => {
       socket.emit('cop_reply', 'Routing complex request to Cloud AI...');
       
       const prompt = `The user typed: "${theMessage}". 
-      If it's a casual conversation, fix the spelling and set mode to "CHAT" with a friendly reply.
-      If they want to build something, fix their spelling perfectly. 
-      Decide if we should "SEARCH" a 3D warehouse for a complex object, or "GENERATE" a basic math shape.
+      If it's a casual conversation, set mode to "CHAT" with a friendly reply.
+      If they want to build something, decide if we should "SEARCH" a 3D warehouse for a complex object, or "GENERATE" a basic math shape.
       Reply ONLY in raw JSON.
       {"mode": "CHAT" or "SEARCH" or "GENERATE", "chatReply": "hello!", "searchKeyword": "single word", "mathParams": {"shape":"box", "width":2, "height":2, "color":"#ffffff"}}`;
 
       const result = await brain.generateContent(prompt);
       let aiText = result.response.text();
-      
       let cleanText = aiText.replace(/```json/gi, '').replace(/```/gi, '').trim();
       decision = JSON.parse(cleanText);
 
-      // Step C: Execute Gemini's Universal Decision
       if (decision.mode === "CHAT") {
         socket.emit('cop_reply', decision.chatReply);
       } 
       else if (decision.mode === "SEARCH") {
         socket.emit('cop_reply', `Cloud AI fetching 3D model of: ${decision.searchKeyword}...`);
-        const response = await fetch(`https://poly.pizza/api/search?q=${decision.searchKeyword}`);
-        const data = await response.json();
+        
+        // 🛡️ THE SAFETY NET 2: Protect Gemini's search too!
+        try {
+          const response = await fetch(`https://poly.pizza/api/search?q=${decision.searchKeyword}`);
+          const textResponse = await response.text();
+          
+          if (textResponse.trim().startsWith('<')) {
+             socket.emit('cop_reply', `3D Warehouse locked. Gemini is building a math fallback.`);
+             socket.emit('draw_3d_house', { type: 'math', params: decision.mathParams });
+             return;
+          }
 
-        if (data.results && data.results.length > 0) {
-          socket.emit('draw_3d_house', { type: 'model', url: data.results[0].url });
-          socket.emit('cop_reply', `Model Loaded: ${decision.searchKeyword}!`);
-        } else {
-          socket.emit('cop_reply', `Cloud AI could not find a 3D model for ${decision.searchKeyword}. Building default shape.`);
-          socket.emit('draw_3d_house', { type: 'math', params: decision.mathParams });
+          const data = JSON.parse(textResponse);
+          if (data.results && data.results.length > 0) {
+            socket.emit('draw_3d_house', { type: 'model', url: data.results[0].url });
+            socket.emit('cop_reply', `Model Loaded: ${decision.searchKeyword}!`);
+          } else {
+            socket.emit('cop_reply', `Cloud AI could not find a 3D model. Building default shape.`);
+            socket.emit('draw_3d_house', { type: 'math', params: decision.mathParams });
+          }
+        } catch (e) {
+            socket.emit('cop_reply', `Warehouse connection failed. Building box.`);
+            socket.emit('draw_3d_house', { type: 'math', params: decision.mathParams });
         }
       } 
       else {

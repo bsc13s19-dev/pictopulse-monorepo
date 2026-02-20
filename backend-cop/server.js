@@ -20,9 +20,13 @@ const brain = ai.getGenerativeModel({
   tools: [{ googleSearch: {} }] 
 });
 
-// 🧠 2. YOUR SMART LOCAL BRAIN (The Lexical Parser)
-function askLocalBrain(message) {
+// 🧠 THE SUPER BRAIN (Math + Local Datasets)
+function askSuperBrain(message) {
   const msg = message.toLowerCase();
+  
+  // ---------------------------------------------------------
+  // 1. THE MATH ENGINE (Shapes & Colors)
+  // ---------------------------------------------------------
   const knownShapes = ['box', 'cube', 'sphere', 'ball', 'cylinder', 'cone'];
   const knownColors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink', 'black', 'white', 'grey', 'gold'];
   
@@ -30,24 +34,42 @@ function askLocalBrain(message) {
   let foundColor = '#00ffcc'; // Default neon
   let size = 2;
 
-  // Hunt for shape, color, and size
   for (let s of knownShapes) {
     if (msg.includes(s)) { foundShape = (s === 'cube') ? 'box' : (s === 'ball') ? 'sphere' : s; break; }
   }
-  for (let c of knownColors) {
-    if (msg.includes(c)) { foundColor = c; break; }
-  }
-  const numberMatch = msg.match(/\d+/);
-  if (numberMatch) {
-    size = parseInt(numberMatch[0]);
-    if (size > 20) size = 20; // Speed limit on huge sizes!
-  }
-
-  // If we found a math shape, build it instantly for free
+  
   if (foundShape) {
+    for (let c of knownColors) { if (msg.includes(c)) { foundColor = c; break; } }
+    const numberMatch = msg.match(/\d+/);
+    if (numberMatch) { size = parseInt(numberMatch[0]); if (size > 20) size = 20; }
+    
     return { mode: "GENERATE", mathParams: { shape: foundShape, width: size, height: size, color: foundColor } };
   }
-  return null; // I don't know it, ask Gemini!
+
+  // ---------------------------------------------------------
+  // 2. THE LOCAL DATASET (The 3D Dictionary)
+  // ---------------------------------------------------------
+  // We teach the brain common words so it DOES NOT need to ask Gemini!
+  const localDictionary = {
+    "car": "car", "ferrari": "car", "bugatti": "car", "truck": "truck",
+    "dog": "dog", "cat": "cat", "bird": "bird", "lion": "lion", "tiger": "tiger",
+    "tree": "tree", "plant": "plant", "flower": "flower", "grass": "grass",
+    "house": "house", "building": "building", "castle": "castle", "tower": "tower",
+    "sword": "sword", "gun": "gun", "shield": "shield", "chair": "chair", "table": "table",
+    "computer": "computer", "phone": "phone", "robot": "robot", "airplane": "airplane"
+  };
+
+  // Search the user's message to see if it matches our offline dictionary
+  for (let key in localDictionary) {
+    if (msg.includes(key)) {
+      return { mode: "SEARCH", searchKeyword: localDictionary[key] }; // Instantly go to Poly Pizza!
+    }
+  }
+
+  // ---------------------------------------------------------
+  // 3. I DON'T KNOW (Fallback to Gemini)
+  // ---------------------------------------------------------
+  return null; 
 }
 
 // 🔌 3. THE DISPATCHER LOGIC
@@ -56,17 +78,30 @@ io.on('connection', (socket) => {
 
   socket.on('build_house', async (theMessage) => {
     try {
-      // Step A: Ask the Local Brain first
-      let decision = askLocalBrain(theMessage);
+      // Step A: Ask the SUPER BRAIN first!
+      let decision = askSuperBrain(theMessage);
 
       if (decision !== null) {
-        socket.emit('cop_reply', 'Local Brain built this instantly!');
-        socket.emit('draw_3d_house', { type: 'math', params: decision.mathParams });
-        return; // Stop here, we are done!
+        if (decision.mode === "GENERATE") {
+          socket.emit('cop_reply', 'Math Engine built this instantly!');
+          socket.emit('draw_3d_house', { type: 'math', params: decision.mathParams });
+          return; // Stop here!
+        } 
+        else if (decision.mode === "SEARCH") {
+          socket.emit('cop_reply', `Local Dataset found keyword: ${decision.searchKeyword}...`);
+          // Go straight to Poly Pizza without using Gemini!
+          const response = await fetch(`https://poly.pizza/api/search?q=${decision.searchKeyword}`);
+          const data = await response.json();
+          if (data.results && data.results.length > 0) {
+            socket.emit('draw_3d_house', { type: 'model', url: data.results[0].url });
+          }
+          return; // Stop here!
+        }
       }
 
-      // Step B: Ask Gemini (with Google Search)
-      socket.emit('cop_reply', 'Searching the web and AI brain...');
+      // Step B: Ask Gemini ONLY IF the Super Brain failed
+      socket.emit('cop_reply', 'Super Brain confused. Waking up Cloud LLM...');
+      // ... (Keep your existing Gemini code right here) ...
       
       const prompt = `The user wants to build: "${theMessage}". 
       Use your Google Search tool if you need to look up facts (e.g., "fastest car", "tallest building").

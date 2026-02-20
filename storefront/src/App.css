@@ -15,11 +15,11 @@ body, html, #root { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow
 /* 🏷️ Top Navigation Bar */
 .top-bar { position: absolute; top: 0; left: 0; right: 0; height: 60px; background: rgba(10, 10, 10, 0.9); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; border-bottom: 1px solid #222; z-index: 50; backdrop-filter: blur(10px); }
 .tabs-container { display: flex; gap: 10px; position: absolute; left: 50%; transform: translateX(-50%); }
-.tab-btn { background: transparent; color: #555; border: none; font-size: 13px; font-weight: 600; cursor: pointer; padding: 10px 15px; transition: 0.2s; border-radius: 6px; }
+.tab-btn { background: transparent; color: #555; border: none; font-size: 13px; font-weight: 600; cursor: pointer; padding: 10px 15px; transition: 0.2s; border-radius: 6px; white-space: nowrap; }
 .tab-btn:hover { color: #fff; background: #222; }
 .tab-btn.active { color: #00ffcc; background: rgba(0, 255, 204, 0.1); }
 
-/* 🔲 UI Overlay (For Instant Tab Switching!) */
+/* 🔲 UI Overlay */
 .ui-overlay { position: absolute; top: 60px; left: 0; right: 0; bottom: 0; background: #0e0e0e; z-index: 20; display: flex; flex-direction: column; align-items: center; overflow-y: auto; }
 
 /* 👤 User Profile & Buttons */
@@ -28,19 +28,30 @@ body, html, #root { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow
 .toggle-btn, .cam-btn { background: #222; color: white; border: 1px solid #444; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: 0.2s; }
 .toggle-btn:hover, .cam-btn:hover, .cam-btn.active { background: #00ffcc; color: black; }
 
-/* 💬 GPT-Style Chat */
+/* 💬 Chat & Outliner */
 .chat-container { width: 100%; padding: 40px; display: flex; flex-direction: column; align-items: center; }
 .chat-bubble { max-width: 800px; width: 100%; padding: 20px; border-radius: 12px; margin-bottom: 20px; font-size: 15px; line-height: 1.5; }
 .chat-bubble.ai { background: #151515; border: 1px solid #222; color: #ddd; }
 .chat-bubble.user { background: #00ffcc; color: black; font-weight: 500; align-self: flex-end; }
-
-/* 📋 Outliner & Inputs */
 .outliner-item { padding: 8px 12px; background: #151515; border: 1px solid #222; margin-bottom: 5px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #aaa; transition: 0.2s; }
 .outliner-item:hover { background: #222; color: white; }
 .outliner-item.active { background: #00ffcc; color: black; font-weight: bold; }
 
+/* ⌨️ Inputs & Controls */
 .floating-command { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; background: rgba(15, 15, 15, 0.95); padding: 8px 12px; border-radius: 20px; border: 1px solid #333; z-index: 60; box-shadow: 0 10px 40px rgba(0,0,0,0.9); }
 .magic-input { background: transparent; border: none; color: white; padding: 10px; width: 400px; font-size: 15px; outline: none; }
 .build-btn { background: #00ffcc; color: black; border: none; padding: 10px 20px; border-radius: 12px; font-weight: bold; cursor: pointer; }
 .pro-select, .pro-slider { width: 100%; background: #111; color: white; border: 1px solid #333; padding: 8px; border-radius: 5px; margin-top: 5px; outline: none; }
 .camera-controls { position: absolute; top: 80px; right: 20px; display: flex; gap: 5px; background: rgba(0,0,0,0.7); padding: 5px; border-radius: 8px; z-index: 15; backdrop-filter: blur(5px); }
+
+/* 📱 MOBILE RESPONSIVENESS (The Magic Shrink Ray!) */
+@media (max-width: 768px) {
+  .left-sidebar, .right-sidebar { width: 100%; }
+  .floating-command { width: 95%; flex-wrap: wrap; justify-content: center; bottom: 10px; border-radius: 10px; }
+  .magic-input { width: 100%; text-align: center; }
+  .top-bar { padding: 0 10px; }
+  .tabs-container { position: static; transform: none; overflow-x: auto; width: 100%; padding-bottom: 5px; margin-top: 5px; }
+  .top-bar { flex-direction: column; height: auto; padding-top: 10px; gap: 10px; }
+  .user-profile span { display: none; } /* Hide the name to save space */
+  .camera-controls { top: 120px; }
+}

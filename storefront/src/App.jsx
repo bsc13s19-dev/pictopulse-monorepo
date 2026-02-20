@@ -168,7 +168,7 @@ export default function App() {
       </div>
 
       {/* 🎮 3D CANVAS (Always running in the absolute background!) */}
-      <div style={{ position: 'absolute', top: '60px', left: 0, right: 0, bottom: 0, z-index: 1 }}>
+      <div style={{ position: 'absolute', top: '60px', left: 0, right: 0, bottom: 0, zIndex: 1 }}>
         <div className="camera-controls">
           {['Free', 'Top', 'Front', 'Side'].map(view => (
              <button key={view} className={`cam-btn ${camView === view ? 'active' : ''}`} onClick={() => setCamView(view)}>{view}</button>

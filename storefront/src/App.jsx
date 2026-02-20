@@ -4,36 +4,61 @@ import { OrbitControls, Grid, Environment, useGLTF, TransformControls } from '@r
 import { io } from 'socket.io-client'; 
 import './App.css'; 
 
+// 🔗 Your Cloud Dispatcher URL
 const socket = io('https://pictopulse-backend.onrender.com'); 
 
-// 📦 THE NEW TOY BOX MANAGER (Handles Arrays!)
-function DisplayManager({ objects, gizmoMode }) {
+// 📦 THE CLICKABLE TOY BOX MANAGER
+function DisplayManager({ objects, gizmoMode, selectedId, setSelectedId }) {
   if (!objects || objects.length === 0) return null;
 
-  return objects.map((data, index) => {
-    // We only attach the Gizmo to the NEWEST object you built
-    const isLatest = index === objects.length - 1;
+  return objects.map((data) => {
+    const isSelected = data.id === selectedId; // Is this the one we clicked?
     let content = null;
+
+    // The Click Event Function
+    const handleSelect = (e) => {
+      e.stopPropagation(); // Stops the click from clicking the floor too
+      setSelectedId(data.id);
+    };
 
     if (data.type === 'model') {
       const { scene } = useGLTF(data.url);
-      // We clone the scene so multiple of the same model don't glitch
-      content = <primitive object={scene.clone()} scale={2} />;
+      content = (
+        <primitive 
+          object={scene.clone()} 
+          scale={2} 
+          position={[data.startX, 0, data.startZ]} 
+          onClick={handleSelect} // 👈 Click to select!
+        />
+      );
     } else if (data.type === 'math') {
       const { shape, width, height, color } = data.params;
       content = (
-        <mesh castShadow receiveShadow position={[0, height / 2, 0]}>
+        <mesh 
+          castShadow 
+          receiveShadow 
+          position={[data.startX, height / 2, data.startZ]}
+          onClick={handleSelect} // 👈 Click to select!
+        >
           {shape === 'sphere' && <sphereGeometry args={[width / 2, 32, 32]} />}
           {shape === 'box' && <boxGeometry args={[width, height, width]} />}
           {shape === 'cylinder' && <cylinderGeometry args={[width / 2, width / 2, height, 32]} />}
           {shape === 'cone' && <coneGeometry args={[width / 2, height, 32]} />}
-          <meshStandardMaterial color={color} metalness={0.4} roughness={0.3} />
+          
+          {/* Make the selected one glow slightly! */}
+          <meshStandardMaterial 
+            color={color} 
+            metalness={0.4} 
+            roughness={0.3} 
+            emissive={isSelected ? "#ffffff" : "#000000"} 
+            emissiveIntensity={isSelected ? 0.2 : 0} 
+          />
         </mesh>
       );
     }
 
-    // If it's the newest object, wrap it in the Gizmo. Otherwise, just draw it normally.
-    if (isLatest) {
+    // Only put the Gizmo on the exact object you clicked!
+    if (isSelected) {
       return (
         <TransformControls key={data.id} mode={gizmoMode}>
           {content}
@@ -41,10 +66,12 @@ function DisplayManager({ objects, gizmoMode }) {
       );
     }
     
+    // If not selected, just draw it normally
     return <group key={data.id}>{content}</group>;
   });
 }
 
+// 🎥 THE CINEMATIC CAMERA DIRECTOR
 function CameraDirector({ isRecording }) {
   useFrame((state) => {
     if (isRecording) {
@@ -63,20 +90,31 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false);
   const [gizmoMode, setGizmoMode] = useState('translate'); 
   
-  // 🚀 THE ARRAY FIX: This now holds a list of EVERYTHING you build!
+  // 🚀 THE TOY BOX: Holds everything you build
   const [sceneObjects, setSceneObjects] = useState([]);
+  // 🎯 THE TARGET: Remembers exactly which toy you clicked
+  const [selectedId, setSelectedId] = useState(null); 
 
   useEffect(() => {
     socket.on('cop_reply', (msg) => setCopReply(msg));
     
     socket.on('draw_3d_house', (data) => {
-      // We add a unique "Date.now()" ID to every object so they never share scale data
-      const newObject = { ...data, id: Date.now() };
-      // This line means: "Keep all the old stuff, and add the new object to the end"
+      // Give it a random starting position so they don't pile up!
+      const newObject = { 
+        ...data, 
+        id: Date.now(),
+        startX: (Math.random() * 8) - 4, // Random spot between -4 and 4
+        startZ: (Math.random() * 8) - 4 
+      };
+      
       setSceneObjects((prevObjects) => [...prevObjects, newObject]);
+      setSelectedId(newObject.id); // Auto-select the brand new object!
     });
 
-    return () => socket.off();
+    return () => {
+      socket.off('cop_reply');
+      socket.off('draw_3d_house');
+    };
   }, []);
 
   const handleBuild = () => {
@@ -85,26 +123,35 @@ export default function App() {
     setPrompt(""); 
   };
 
-  // Extra Pro Feature: A button to clear the grid!
   const handleClear = () => {
     setSceneObjects([]);
+    setSelectedId(null);
     setCopReply("GRID CLEARED");
   };
 
   return (
     <div className="app-container">
+      {/* 🔮 NEON HEADER PANEL */}
       <div className="glass-panel header-panel">
         <h2 className="neon-text">{copReply}</h2>
         
+        {/* 🛠️ GIZMO TOOLBAR */}
         <div style={{ marginTop: '10px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
           <button className="build-btn" style={{ padding: '5px 15px', fontSize: '12px', background: gizmoMode === 'translate' ? '#ff0055' : '#444' }} onClick={() => setGizmoMode('translate')}>Move</button>
           <button className="build-btn" style={{ padding: '5px 15px', fontSize: '12px', background: gizmoMode === 'rotate' ? '#ff0055' : '#444' }} onClick={() => setGizmoMode('rotate')}>Rotate</button>
           <button className="build-btn" style={{ padding: '5px 15px', fontSize: '12px', background: gizmoMode === 'scale' ? '#ff0055' : '#444' }} onClick={() => setGizmoMode('scale')}>Scale</button>
-          <button className="build-btn" style={{ padding: '5px 15px', fontSize: '12px', background: '#bb0000' }} onClick={handleClear}>Clear Grid</button>
+          <button className="build-btn" style={{ padding: '5px 15px', fontSize: '12px', background: '#bb0000', color: 'white' }} onClick={handleClear}>Clear Grid</button>
         </div>
       </div>
 
-      <Canvas shadows="basic" camera={{ position: [15, 15, 15], fov: 40 }} gl={{ antialias: true, shadowMapType: 1 }}>
+      {/* 🎮 3D VIEWPORT */}
+      {/* When you click the empty grid floor, it unselects your objects */}
+      <Canvas 
+        shadows="basic" 
+        camera={{ position: [15, 15, 15], fov: 40 }} 
+        gl={{ antialias: true, shadowMapType: 1 }}
+        onPointerMissed={() => setSelectedId(null)} 
+      >
         <CameraDirector isRecording={isRecording} />
         <ambientLight intensity={0.5} />
         <spotLight position={[10, 20, 10]} angle={0.3} penumbra={1} intensity={2} castShadow />
@@ -112,12 +159,19 @@ export default function App() {
         <Grid infiniteGrid sectionColor="#00ffcc" cellColor="#111" fadeDistance={50} />
         
         <Suspense fallback={null}>
-            <DisplayManager objects={sceneObjects} gizmoMode={gizmoMode} />
+            <DisplayManager 
+              objects={sceneObjects} 
+              gizmoMode={gizmoMode} 
+              selectedId={selectedId} 
+              setSelectedId={setSelectedId} 
+            />
         </Suspense>
         
+        {/* makeDefault allows the Gizmo to pause the camera when you drag things! */}
         {!isRecording && <OrbitControls makeDefault minDistance={5} maxDistance={50} />}
       </Canvas>
       
+      {/* 🧊 THE INTERFACE BAR */}
       <div className="glass-panel footer-panel">
          <input 
             className="magic-input" 

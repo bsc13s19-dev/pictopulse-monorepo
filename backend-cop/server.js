@@ -27,20 +27,19 @@ io.on('connection', (socket) => {
       const prompt = `User wants: "${theMessage}".
       Decide: Should we "SEARCH" for a pre-made model (animals, vehicles, complex props) or "GENERATE" a custom math shape (buildings, blocks, spheres, colored walls)?
       
-      Reply ONLY in raw JSON:
+      Reply ONLY in raw JSON format. Do not use markdown formatting or code blocks.
       {
         "mode": "SEARCH" or "GENERATE",
         "searchKeyword": "best single word for searching",
-        "mathParams": { "shape": "box" or "sphere", "width": 1-10, "height": 1-15, "color": "hexCode" }
+        "mathParams": { "shape": "box" or "sphere", "width": 1, "height": 1, "color": "#ff0000" }
       }`;
 
       const result = await brain.generateContent(prompt);
-      
-      // ✂️ THE BOX CUTTER: Remove the fancy markdown backticks
       let aiText = result.response.text();
+      
+      // ✂️ THE BOX CUTTER: This removes the annoying ```json and ``` from the AI's reply!
       let cleanText = aiText.replace(/```json/gi, '').replace(/```/gi, '').trim();
       
-      // Now the robot can read it perfectly!
       const decision = JSON.parse(cleanText);
 
       if (decision.mode === "SEARCH") {
@@ -61,6 +60,7 @@ io.on('connection', (socket) => {
       }
 
     } catch (error) {
+      // If it crashes, it will print the exact reason in the Render logs
       console.error("System Error:", error);
       socket.emit('cop_reply', 'Brain freeze! Try again.');
     }

@@ -7,16 +7,18 @@ import './App.css';
 
 const socket = io('https://pictopulse-backend.onrender.com'); 
 
-// 🧱 1. THE LOCKED 3D WALL BUILDER (No Gizmo)
+// 🧱 1. THE LOCKED 3D WALL BUILDER (Optimized Memory!)
 function Wall({ start, end }) {
   const dx = end.x - start.x; const dz = end.y - start.y;
   const length = Math.sqrt(dx * dx + dz * dz);
   const angle = Math.atan2(dz, dx);
   const midX = (start.x + end.x) / 2; const midZ = (start.y + end.y) / 2;
 
+  // 🛡️ MEMORY SHIELD: This caches the math so the GPU doesn't recalculate it 60 times a second!
+  const geometry = React.useMemo(() => new THREE.BoxGeometry(length, 3, 0.2), [length]);
+
   return (
-    <mesh position={[midX, 1.5, midZ]} rotation={[0, -angle, 0]} castShadow receiveShadow>
-      <boxGeometry args={[length, 3, 0.2]} />
+    <mesh position={[midX, 1.5, midZ]} rotation={[0, -angle, 0]} geometry={geometry} castShadow receiveShadow>
       <meshStandardMaterial color="#eeeeee" roughness={0.8} />
     </mesh>
   );
@@ -249,26 +251,29 @@ export default function App() {
         </div>
       )}
 
-      {/* 🎮 TAB 3: 3D EXTRUSION & GIZMO */}
-      <div style={{ position: 'absolute', top: '0', left: 0, right: 0, bottom: 0, zIndex: 1, visibility: activeTab === '3D' ? 'visible' : 'hidden' }}>
-        <Canvas shadows="basic" camera={{ position: [15, 15, 15], fov: 40 }} onPointerMissed={() => setSelectedId(null)}>
-          <ambientLight intensity={0.5} />
-          <spotLight position={[10, 20, 10]} angle={0.3} penumbra={1} intensity={2} castShadow />
-          <Environment preset="city" background blur={0.5} />
-          <Grid infiniteGrid sectionColor="#00ffcc" cellColor="#111" fadeDistance={50} />
-          <OrbitControls makeDefault minDistance={5} maxDistance={50} />
-          
-          <Suspense fallback={null}>
-            {nodes2D.map((node, i) => {
-              if (i === 0) return null;
-              return <Wall key={`wall-${i}`} start={nodes2D[i-1]} end={node} />;
-            })}
-            {sceneObjects.map(obj => (
-              <SceneItem key={obj.id} data={obj} isSelected={selectedId === obj.id} onSelect={setSelectedId} gizmoMode={gizmoMode} updateTransform={updateObjectTransform} />
-            ))}
-          </Suspense>
-        </Canvas>
-      </div>
+      {/* 🎮 TAB 3: 3D EXTRUSION & GIZMO (Now Optimized!) */}
+      {/* Notice we added {activeTab === '3D' && ...} so the engine completely turns off when you leave! */}
+      {activeTab === '3D' && (
+        <div style={{ position: 'absolute', top: '0', left: 0, right: 0, bottom: 0, zIndex: 1 }}>
+          <Canvas shadows="basic" camera={{ position: [15, 15, 15], fov: 40 }} onPointerMissed={() => setSelectedId(null)}>
+            <ambientLight intensity={0.5} />
+            <spotLight position={[10, 20, 10]} angle={0.3} penumbra={1} intensity={2} castShadow />
+            <Environment preset="city" background blur={0.5} />
+            <Grid infiniteGrid sectionColor="#00ffcc" cellColor="#111" fadeDistance={50} />
+            <OrbitControls makeDefault minDistance={5} maxDistance={50} />
+            
+            <Suspense fallback={null}>
+              {nodes2D.map((node, i) => {
+                if (i === 0) return null;
+                return <Wall key={`wall-${i}`} start={nodes2D[i-1]} end={node} />;
+              })}
+              {sceneObjects.map(obj => (
+                <SceneItem key={obj.id} data={obj} isSelected={selectedId === obj.id} onSelect={setSelectedId} gizmoMode={gizmoMode} updateTransform={updateObjectTransform} />
+              ))}
+            </Suspense>
+          </Canvas>
+        </div>
+      )}
 
       {/* 🎬 TAB 4: ANIMATION */}
       {activeTab === 'Anim' && (

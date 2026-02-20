@@ -48,3 +48,33 @@ body, html, #root { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow
   .top-bar { flex-wrap: wrap; padding: 10px; height: auto; justify-content: center; }
   .tabs-container { position: relative; left: 0; transform: none; max-width: 100%; width: 100%; overflow-x: auto; margin-top: 10px; }
 }
+/* 🎨 TAB 5: CANVA-STYLE SLIDE EDITOR */
+.canva-workspace { display: flex; width: 100%; height: calc(100vh - 120px); margin-top: 20px; background: #0a0a0a; border: 1px solid #333; border-radius: 12px; overflow: hidden; }
+
+/* Left Sidebar: Slide Thumbnails */
+.slide-sidebar { width: 250px; background: #111; border-right: 1px solid #222; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+.slide-thumbnail { width: 100%; aspect-ratio: 16/9; background: #222; border: 2px solid transparent; border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #777; flex-direction: column; }
+.slide-thumbnail:hover { border-color: #555; }
+.slide-thumbnail.active { border-color: #00ffcc; background: #1a1a1a; color: #00ffcc; }
+
+/* Center: The Active 16:9 Canvas */
+.slide-canvas-container { flex-grow: 1; display: flex; align-items: center; justify-content: center; background: #050505; padding: 40px; position: relative; }
+.active-slide { width: 100%; max-width: 900px; aspect-ratio: 16/9; background: white; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border-radius: 4px; padding: 40px; position: relative; display: flex; flex-direction: column; color: black; }
+
+/* Editable Text Blocks */
+.editable-text { outline: none; border: 1px dashed transparent; transition: 0.2s; padding: 5px; }
+.editable-text:hover, .editable-text:focus { border-color: #00ffcc; background: rgba(0, 255, 204, 0.1); border-radius: 4px; }
+.slide-title { font-size: 36px; font-weight: bold; margin-bottom: 10px; color: #111; }
+.slide-subtitle { font-size: 18px; color: #555; margin-bottom: 20px; }
+.slide-body { font-size: 14px; color: #333; line-height: 1.6; }
+
+/* Presentation Images & Tables */
+.slide-image-placeholder { width: 100%; height: 250px; background: #f0f0f0; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #888; margin-top: 20px; border-radius: 8px; }
+.slide-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
+.slide-table th, .slide-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+.slide-table th { background: #f5f5f5; font-weight: bold; }
+
+/* Top Export Bar inside Canva */
+.canva-toolbar { position: absolute; top: 15px; right: 20px; display: flex; gap: 10px; z-index: 10; }
+.btn-export { background: #00ffcc; color: black; border: none; padding: 8px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+.btn-export:hover { background: white; }

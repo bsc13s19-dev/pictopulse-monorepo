@@ -127,42 +127,85 @@ export default function App() {
         </div>
       )}
 
-      {/* 📊 TAB 5: PRESENTATION, EXCEL & EXPORT */}
+      {/* 📊 TAB 5: CANVA-STYLE PRESENTATION STUDIO */}
       {activeTab === 'Pres' && (
-        <div className="ui-overlay">
-          <h2 style={{ textAlign: 'center', marginBottom: '30px' }}>Project Dashboard: {currentProject.name}</h2>
+        <div className="ui-overlay" style={{ padding: '20px' }}>
           
-          <div className="dashboard-grid">
-            {/* The Excel Data Table */}
-            <div className="dashboard-card">
-              <h3 style={{ color: '#00ffcc', marginTop: 0 }}>📊 Bill of Materials & Area (Excel)</h3>
-              <table className="excel-table">
-                <thead>
-                  <tr><th>Space Designation</th><th>Square Footage</th><th>Material / Notes</th></tr>
-                </thead>
-                <tbody>
-                  {excelData.length > 0 ? excelData.map((row, i) => (
-                    <tr key={i} style={{ background: i === excelData.length-1 ? '#1a3c5a' : 'transparent', fontWeight: i === excelData.length-1 ? 'bold' : 'normal' }}>
-                      <td>{row.room}</td><td>{row.area}</td><td>{row.materials}</td>
-                    </tr>
-                  )) : <tr><td colSpan="3" style={{textAlign:'center'}}>No data generated yet. Run a chat prompt.</td></tr>}
-                </tbody>
-              </table>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%' }}>
+            <div>
+              <h2 style={{ margin: 0 }}>Slide Studio: {currentProject.name}</h2>
+              <p style={{ color: '#888', margin: '5px 0 0 0', fontSize: '13px' }}>Click any text to edit directly before exporting.</p>
+            </div>
+          </div>
+
+          <div className="canva-workspace">
+            
+            {/* ⬅️ CANVA SIDEBAR: SLIDE THUMBNAILS */}
+            <div className="slide-sidebar">
+              <div className="slide-thumbnail active">
+                 <strong>Slide 1</strong><span>Cover Page</span>
+              </div>
+              <div className="slide-thumbnail">
+                 <strong>Slide 2</strong><span>2D Blueprint</span>
+              </div>
+              <div className="slide-thumbnail">
+                 <strong>Slide 3</strong><span>3D Render</span>
+              </div>
+              <div className="slide-thumbnail">
+                 <strong>Slide 4</strong><span>Area & Cost (Excel)</span>
+              </div>
             </div>
 
-            {/* The Canva & Export Panel */}
-            <div className="dashboard-card">
-              <h3 style={{ color: '#00ffcc', marginTop: 0 }}>📤 Render & Client Export</h3>
-              <div style={{ background: '#0a0a0a', padding: '15px', borderRadius: '8px', border: '1px solid #333', marginBottom: '15px' }}>
-                <p style={{ margin: 0, fontSize: '13px', color: '#aaa' }}>Narrator Voice Track: <span style={{ color: 'white', fontWeight: 'bold' }}>Female (Studio Configured)</span></p>
-                <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#aaa' }}>Output Resolution: <span style={{ color: 'white', fontWeight: 'bold' }}>4K Cinematic</span></p>
+            {/* 🔲 CANVA CENTER: ACTIVE SLIDE CANVAS */}
+            <div className="slide-canvas-container">
+              
+              {/* Export Toolbar */}
+              <div className="canva-toolbar">
+                 <button className="btn-export">⬇️ Download PDF</button>
+                 <button className="btn-export">⬇️ Download PPTX</button>
+                 {/* Voice narration locked for video export as requested */}
+                 <button className="btn-export" style={{ background: '#ff0055', color: 'white' }}>🎬 Render Video (Female Voice)</button>
               </div>
 
-              <div className="export-grid">
-                <button className="export-btn"><span>📄</span> Export Client PDF <small style={{fontWeight:'normal', color:'#888'}}>Floorplan + Data</small></button>
-                <button className="export-btn"><span>🎬</span> Render .MP4 Video <small style={{fontWeight:'normal', color:'#888'}}>Spatial Audio Included</small></button>
-                <button className="export-btn"><span>📦</span> Export .GLB Model <small style={{fontWeight:'normal', color:'#888'}}>Full 3D Geometry</small></button>
-                <button className="export-btn"><span>🖼️</span> Export PNG Renders <small style={{fontWeight:'normal', color:'#888'}}>4K Still Shots</small></button>
+              {/* THE WHITE EDITABLE SLIDE */}
+              <div className="active-slide">
+                
+                {/* contentEditable makes it typeable like a real word processor! */}
+                <div className="editable-text slide-title" contentEditable suppressContentEditableWarning>
+                  {currentProject.name} Proposal
+                </div>
+                
+                <div className="editable-text slide-subtitle" contentEditable suppressContentEditableWarning>
+                  Prepared by Pictopulse Architecture AI
+                </div>
+                
+                <div className="editable-text slide-body" contentEditable suppressContentEditableWarning>
+                  This presentation outlines the structural and spatial design for the newly drafted 2BHK residential unit. The following slides contain the 2D CAD blueprints, 3D spatial renders, and the full bill of materials.
+                </div>
+
+                {/* Placeholder for the AI generated screenshot */}
+                <div className="slide-image-placeholder">
+                   [ 📸 Auto-Generated 3D Exterior Render Will Appear Here ]
+                </div>
+
+                {/* Example of the Excel Table directly on the slide */}
+                {excelData.length > 0 && (
+                  <table className="slide-table">
+                    <thead>
+                      <tr><th>Space Designation</th><th>Square Footage</th><th>Materials</th></tr>
+                    </thead>
+                    <tbody>
+                      {excelData.slice(0, 3).map((row, i) => (
+                        <tr key={i}>
+                          <td className="editable-text" contentEditable suppressContentEditableWarning>{row.room}</td>
+                          <td className="editable-text" contentEditable suppressContentEditableWarning>{row.area}</td>
+                          <td className="editable-text" contentEditable suppressContentEditableWarning>{row.materials}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+
               </div>
             </div>
           </div>

@@ -35,7 +35,13 @@ io.on('connection', (socket) => {
       }`;
 
       const result = await brain.generateContent(prompt);
-      const decision = JSON.parse(result.response.text());
+      
+      // ✂️ THE BOX CUTTER: Remove the fancy markdown backticks
+      let aiText = result.response.text();
+      let cleanText = aiText.replace(/```json/gi, '').replace(/```/gi, '').trim();
+      
+      // Now the robot can read it perfectly!
+      const decision = JSON.parse(cleanText);
 
       if (decision.mode === "SEARCH") {
         socket.emit('cop_reply', `Searching warehouse for: ${decision.searchKeyword}...`);

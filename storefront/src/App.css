@@ -1,84 +1,47 @@
 /* 🌌 Universal Studio Reset */
-body, html, #root {
-  margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden;
-  background-color: #050505; color: white; font-family: 'Segoe UI', sans-serif;
-}
+body, html, #root { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background-color: #050505; color: white; font-family: 'Segoe UI', sans-serif; }
+.studio-container { display: flex; width: 100vw; height: 100vh; overflow: hidden; }
 
-.studio-container {
-  display: flex; width: 100vw; height: 100vh; overflow: hidden;
-}
-
-/* ⬅️ Left Dock: AI Chat & Settings */
-.left-sidebar {
-  width: 320px; background: #0a0a0a; border-right: 1px solid #222;
-  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-  display: flex; flex-direction: column; z-index: 20;
-}
+/* ⬅️ Left Dock & ➡️ Right Dock */
+.left-sidebar, .right-sidebar { background: #0a0a0a; border: 1px solid #222; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; z-index: 20; }
+.left-sidebar { width: 320px; border-right: 1px solid #222; }
 .left-sidebar.closed { margin-left: -320px; }
-
-/* ➡️ Right Dock: Environment & Assembly */
-.right-sidebar {
-  width: 320px; background: #0a0a0a; border-left: 1px solid #222;
-  transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-  display: flex; flex-direction: column; z-index: 20;
-}
+.right-sidebar { width: 320px; border-left: 1px solid #222; }
 .right-sidebar.closed { margin-right: -320px; }
 
 .sidebar-section { padding: 15px; border-bottom: 1px solid #1a1a1a; }
 .sidebar-title { margin: 0 0 10px 0; color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
 
-/* 🔲 Center Workspace */
-.main-workspace { flex-grow: 1; display: flex; flex-direction: column; position: relative; }
+/* 🔲 Center Workspace & Top Bar */
+.main-workspace { flex-grow: 1; display: flex; flex-direction: column; position: relative; background: #0e0e0e; }
+.top-bar { height: 60px; background: rgba(10, 10, 10, 0.9); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; border-bottom: 1px solid #222; z-index: 10; }
 
-/* 🏷️ Top Navigation Bar */
-.top-bar {
-  height: 60px; background: rgba(10, 10, 10, 0.9); backdrop-filter: blur(10px);
-  display: flex; justify-content: space-between; align-items: center; 
-  padding: 0 20px; border-bottom: 1px solid #222; z-index: 10;
-}
+/* 🏷️ The 5-Step Pipeline Tabs */
+.tabs-container { display: flex; gap: 10px; position: absolute; left: 50%; transform: translateX(-50%); }
+.tab-btn { background: transparent; color: #555; border: none; font-size: 13px; font-weight: 600; cursor: pointer; padding: 10px 15px; transition: 0.2s; border-radius: 6px; }
+.tab-btn:hover { color: #fff; background: #222; }
+.tab-btn.active { color: #00ffcc; background: rgba(0, 255, 204, 0.1); }
 
-.tabs-container { display: flex; gap: 20px; position: absolute; left: 50%; transform: translateX(-50%); }
-.tab-btn {
-  background: transparent; color: #777; border: none; font-size: 14px; font-weight: 600; 
-  cursor: pointer; padding: 10px 15px; transition: 0.2s;
-}
-.tab-btn:hover { color: #fff; }
-.tab-btn.active { color: #00ffcc; border-bottom: 2px solid #00ffcc; }
+/* 👤 User Profile & UI Buttons */
+.user-profile { display: flex; align-items: center; gap: 10px; background: #111; padding: 5px 15px 5px 5px; border-radius: 30px; border: 1px solid #333; cursor: pointer; }
+.avatar { width: 30px; height: 30px; background: #333; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: white; font-weight: bold; font-size: 12px; }
+.toggle-btn, .cam-btn { background: #222; color: white; border: 1px solid #444; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: 0.2s; }
+.toggle-btn:hover, .cam-btn:hover, .cam-btn.active { background: #00ffcc; color: black; }
 
-/* 👤 User Profile */
-.user-profile {
-  display: flex; align-items: center; gap: 10px; background: #111; 
-  padding: 5px 15px 5px 5px; border-radius: 30px; border: 1px solid #333; cursor: pointer;
-}
-.avatar { width: 30px; height: 30px; background: #00ffcc; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: black; font-weight: bold; }
+/* 💬 GPT-Style Chat Interface */
+.chat-container { flex-grow: 1; display: flex; flex-direction: column; padding: 40px; overflow-y: auto; align-items: center; }
+.chat-bubble { max-width: 800px; width: 100%; padding: 20px; border-radius: 12px; margin-bottom: 20px; font-size: 15px; line-height: 1.5; }
+.chat-bubble.ai { background: #111; border: 1px solid #222; color: #ddd; }
+.chat-bubble.user { background: #00ffcc; color: black; font-weight: 500; align-self: flex-end; }
 
-/* 🎥 Camera Engineer Controls */
-.camera-controls {
-  position: absolute; top: 20px; right: 20px; display: flex; gap: 5px;
-  background: rgba(0,0,0,0.5); padding: 5px; border-radius: 8px; backdrop-filter: blur(5px); z-index: 5;
-}
-.cam-btn { background: #222; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
-.cam-btn:hover, .cam-btn.active { background: #00ffcc; color: black; }
+/* 📋 The Outliner (Hierarchy List) */
+.outliner-item { padding: 8px 12px; background: #151515; border: 1px solid #222; margin-bottom: 5px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #aaa; transition: 0.2s; }
+.outliner-item:hover { background: #222; color: white; }
+.outliner-item.active { background: #00ffcc; color: black; font-weight: bold; }
 
-/* ⌨️ Multi-Modal Command Bar */
-.floating-command {
-  position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 10px; background: rgba(15, 15, 15, 0.85); 
-  padding: 8px 12px; border-radius: 20px; border: 1px solid #333; backdrop-filter: blur(15px); z-index: 30;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-
-.attach-btn { background: transparent; border: none; color: #888; font-size: 20px; cursor: pointer; transition: 0.2s; }
-.attach-btn:hover { color: #00ffcc; }
-
-.mode-select { background: #222; color: #fff; border: 1px solid #444; border-radius: 8px; padding: 8px; font-size: 12px; outline: none; }
-
-.magic-input { background: transparent; border: none; color: white; padding: 10px; width: 350px; font-size: 15px; outline: none; }
-.build-btn { background: #00ffcc; color: black; border: none; padding: 10px 20px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-.build-btn:hover { background: #00cca3; transform: scale(1.05); }
-
-/* UI Inputs */
-.pro-select { width: 100%; background: #111; color: white; border: 1px solid #333; padding: 8px; border-radius: 5px; margin-bottom: 10px; outline: none; }
-.pro-slider { width: 100%; margin-top: 10px; cursor: pointer; }
-.toggle-btn { background: #222; color: white; border: 1px solid #444; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: 0.2s; }
-.toggle-btn:hover { background: #333; }
+/* ⌨️ Inputs & Controls */
+.floating-command { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; background: rgba(15, 15, 15, 0.9); padding: 8px 12px; border-radius: 20px; border: 1px solid #333; z-index: 30; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+.magic-input { background: transparent; border: none; color: white; padding: 10px; width: 400px; font-size: 15px; outline: none; }
+.build-btn { background: #00ffcc; color: black; border: none; padding: 10px 20px; border-radius: 12px; font-weight: bold; cursor: pointer; }
+.pro-select, .pro-slider { width: 100%; background: #111; color: white; border: 1px solid #333; padding: 8px; border-radius: 5px; margin-top: 5px; outline: none; }
+.camera-controls { position: absolute; top: 20px; right: 20px; display: flex; gap: 5px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 8px; z-index: 5; }

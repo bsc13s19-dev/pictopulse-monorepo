@@ -7,11 +7,12 @@ import './App.css';
 
 const socket = io('https://pictopulse-backend.onrender.com'); 
 
-// 🧱 THE CLEAN TOY BLOCK (Gizmo fixed, no game controls!)
+// 🧱 THE BULLETPROOF TOY BLOCK (Never unmounts, never forgets!)
 function SceneItem({ data, isSelected, onSelect, gizmoMode, saveHistory, updateTransform }) {
-  const meshRef = useRef();
+  const meshRef = useRef(null);
+  const [isReady, setIsReady] = useState(false); // Waits for the 3D mesh to actually exist
+
   let content = null;
-  
   if (data.type === 'model') {
     const { scene } = useGLTF(data.url);
     content = <primitive object={scene.clone()} />;
@@ -28,7 +29,7 @@ function SceneItem({ data, isSelected, onSelect, gizmoMode, saveHistory, updateT
     );
   }
 
-  // 🐛 FIX: Clean, simple math save when you let go of the mouse.
+  // 🐛 FIX: Clean coordinate saving without destroying the React tree
   const handleDragEnd = () => {
     if (meshRef.current) {
       updateTransform(data.id, {
@@ -40,9 +41,20 @@ function SceneItem({ data, isSelected, onSelect, gizmoMode, saveHistory, updateT
   };
 
   return (
-    <TransformControls mode={gizmoMode} showX={isSelected} showY={isSelected} showZ={isSelected} onMouseUp={handleDragEnd} onMouseDown={saveHistory}>
+    <>
+      {/* 1. The Gizmo floats outside and attaches via the 'object' prop. */}
+      {isSelected && isReady && meshRef.current && (
+        <TransformControls 
+          object={meshRef.current} 
+          mode={gizmoMode} 
+          onMouseUp={handleDragEnd} 
+          onMouseDown={saveHistory} 
+        />
+      )}
+
+      {/* 2. The 3D Object stays permanently mounted to the floor! */}
       <group 
-        ref={meshRef} 
+        ref={(r) => { meshRef.current = r; if (r && !isReady) setIsReady(true); }}
         position={[data.x, data.y, data.z]} 
         rotation={[data.rotX || 0, data.rotY || 0, data.rotZ || 0]} 
         scale={[data.sX || 1, data.sY || 1, data.sZ || 1]}
@@ -50,7 +62,7 @@ function SceneItem({ data, isSelected, onSelect, gizmoMode, saveHistory, updateT
       >
         {content}
       </group>
-    </TransformControls>
+    </>
   );
 }
 
@@ -72,7 +84,8 @@ function CameraDirector({ camView }) {
 // 🌍 MAIN APP
 export default function App() {
   const [prompt, setPrompt] = useState("");
-  const [chatLog, setChatLog] = useState([{ sender: 'ai', text: 'Welcome to Pictopulse Pro Studio.' }]);
+  const [chatLog, setChatLog] = useState([{ sender: 'ai', text: 'Welcome to Pictopulse.' }]);
+  
   const [sceneObjects, setSceneObjects] = useState([]);
   const [historyStack, setHistoryStack] = useState([]); 
   const [selectedId, setSelectedId] = useState(null); 
@@ -86,12 +99,18 @@ export default function App() {
   const [floorType, setFloorType] = useState('grid'); 
   const [camView, setCamView] = useState('Free'); 
 
+  // 🐛 THE MEMORY VAULT: Prevents the socket from looking at an "old photograph"
+  const sceneObjectsRef = useRef(sceneObjects);
+  useEffect(() => {
+    sceneObjectsRef.current = sceneObjects;
+  }, [sceneObjects]);
+
   // 🕰️ TIME MACHINE
-  const saveHistory = () => setHistoryStack(prev => [...prev.slice(-10), sceneObjects]); 
+  const saveHistory = () => setHistoryStack(prev => [...prev.slice(-10), sceneObjectsRef.current]); 
   const undo = () => { if (historyStack.length > 0) { setSceneObjects(historyStack[historyStack.length - 1]); setHistoryStack(prev => prev.slice(0, -1)); } };
   const deleteSelected = () => { if (selectedId) { saveHistory(); setSceneObjects(prev => prev.filter(obj => obj.id !== selectedId)); setSelectedId(null); } };
 
-  // ⌨️ INVISIBLE PRO SHORTCUTS
+  // ⌨️ SHORTCUTS
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT') return; 
@@ -104,22 +123,33 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, sceneObjects, historyStack]);
+  }, [selectedId, historyStack]);
 
-  // 🔌 SOCKETS
+  // 🔌 SOCKETS (Now totally immune to Stale Data!)
   useEffect(() => {
     socket.on('cop_reply', (msg) => setChatLog(prev => [...prev, { sender: 'ai', text: msg }]));
+    
     socket.on('draw_3d_house', (data) => {
-      saveHistory(); 
+      setHistoryStack(prev => [...prev.slice(-10), sceneObjectsRef.current]); 
+      
       const initialY = data.type === 'math' ? data.params.height / 2 : 0;
-      const newObject = { ...data, id: Date.now(), x: 0, y: initialY, z: 0 };
+      // Spawn new blocks slightly off-center so they don't hide inside each other
+      const newObject = { 
+        ...data, 
+        id: Date.now(), 
+        x: (Math.random() * 4) - 2, 
+        y: initialY, 
+        z: (Math.random() * 4) - 2 
+      };
+      
       setSceneObjects((prev) => [...prev, newObject]);
       setSelectedId(newObject.id); 
       setActiveTab('3D');
       setCamView('Free'); 
     });
+    
     return () => { socket.off('cop_reply'); socket.off('draw_3d_house'); };
-  }, [sceneObjects]); 
+  }, []); // 👈 Empty array means it never resets the connection!
 
   // 🗣️ BUILD LOGIC
   const handleBuild = () => { 
@@ -133,7 +163,9 @@ export default function App() {
     setPrompt(""); 
   };
 
-  const updateObjectTransform = (id, newTransform) => { setSceneObjects(prev => prev.map(obj => obj.id === id ? { ...obj, ...newTransform } : obj)); };
+  const updateObjectTransform = (id, newTransform) => { 
+    setSceneObjects(prev => prev.map(obj => obj.id === id ? { ...obj, ...newTransform } : obj)); 
+  };
 
   return (
     <div className="studio-container">
@@ -145,7 +177,6 @@ export default function App() {
           <strong style={{ fontSize: '18px', letterSpacing: '2px', color: '#00ffcc' }}>PICTOPULSE</strong>
         </div>
         
-        {/* Swipeable Tabs */}
         <div className="tabs-container">
           <button className={`tab-btn ${activeTab === 'Chat' ? 'active' : ''}`} onClick={() => setActiveTab('Chat')}>1. Chat</button>
           <button className={`tab-btn ${activeTab === '2D' ? 'active' : ''}`} onClick={() => setActiveTab('2D')}>2. 2D Plan</button>
@@ -231,11 +262,21 @@ export default function App() {
           <Environment preset={envPreset} background blur={0.5} />
           {floorType === 'grid' && <Grid infiniteGrid sectionColor="#00ffcc" cellColor="#111" fadeDistance={50} />}
           {floorType === 'marble' && <mesh rotation={[-Math.PI/2, 0, 0]} receiveShadow><planeGeometry args={[100, 100]} /><meshStandardMaterial color="#eeeeee" roughness={0.1} /></mesh>}
+          
           <Suspense fallback={null}>
             {sceneObjects.map(obj => (
-              <SceneItem key={obj.id} data={obj} isSelected={selectedId === obj.id} onSelect={setSelectedId} gizmoMode={gizmoMode} saveHistory={saveHistory} updateTransform={updateObjectTransform} />
+              <SceneItem 
+                key={obj.id} 
+                data={obj} 
+                isSelected={selectedId === obj.id} 
+                onSelect={setSelectedId} 
+                gizmoMode={gizmoMode} 
+                saveHistory={saveHistory} 
+                updateTransform={updateObjectTransform} 
+              />
             ))}
           </Suspense>
+          
           <OrbitControls makeDefault minDistance={5} maxDistance={50} />
         </Canvas>
       </div>
@@ -260,7 +301,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ⌨️ COMMAND BAR (Sleek & Clean!) */}
+      {/* ⌨️ COMMAND BAR */}
       {(activeTab === 'Chat' || activeTab === '3D') && (
         <div className="floating-command">
            <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'center' }}>

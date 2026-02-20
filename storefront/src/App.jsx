@@ -7,14 +7,12 @@ import './App.css';
 
 const socket = io('https://pictopulse-backend.onrender.com'); 
 
-// 🧱 1. THE 3D WALL BUILDER (Locked to 2D Grid - No Gizmo!)
+// 🧱 1. THE LOCKED 3D WALL BUILDER (No Gizmo)
 function Wall({ start, end }) {
-  const dx = end.x - start.x;
-  const dz = end.y - start.y;
+  const dx = end.x - start.x; const dz = end.y - start.y;
   const length = Math.sqrt(dx * dx + dz * dz);
   const angle = Math.atan2(dz, dx);
-  const midX = (start.x + end.x) / 2;
-  const midZ = (start.y + end.y) / 2;
+  const midX = (start.x + end.x) / 2; const midZ = (start.y + end.y) / 2;
 
   return (
     <mesh position={[midX, 1.5, midZ]} rotation={[0, -angle, 0]} castShadow receiveShadow>
@@ -24,7 +22,7 @@ function Wall({ start, end }) {
   );
 }
 
-// 🛋️ 2. THE PROPS BUILDER (Uses the Gizmo!)
+// 🛋️ 2. THE PROPS BUILDER (Uses the Gizmo)
 function SceneItem({ data, isSelected, onSelect, gizmoMode, updateTransform }) {
   const meshRef = useRef(null);
   const [isReady, setIsReady] = useState(false);
@@ -84,14 +82,14 @@ export default function App() {
   const [currentProject, setCurrentProject] = useState({ id: null, name: "New Blueprint" });
   
   const [prompt, setPrompt] = useState("");
-  const [chatLog, setChatLog] = useState([{ sender: 'ai', text: 'Pictopulse Engine Ready. Start chatting, or go to Tab 2 to draw walls.' }]);
+  const [chatLog, setChatLog] = useState([{ sender: 'ai', text: 'Pictopulse Gold Master Ready. Chat, draw 2D walls, build 3D props, and save to MongoDB.' }]);
   const [nodes2D, setNodes2D] = useState([]); 
   const [sceneObjects, setSceneObjects] = useState([]); 
 
-  // 🧲 GIZMO STATE RESTORED
   const [selectedId, setSelectedId] = useState(null);
   const [gizmoMode, setGizmoMode] = useState('translate');
 
+  // 🔌 SOCKET & DB LOGIC
   useEffect(() => {
     socket.emit('get_all_projects');
     socket.on('projects_list', (projects) => setSavedProjects(projects));
@@ -103,8 +101,6 @@ export default function App() {
       setActiveTab('2D');
     });
     socket.on('cop_reply', (msg) => setChatLog(prev => [...prev, { sender: 'ai', text: msg }]));
-    
-    // 🧱 AI BUILDER - Catch objects and add them to the scene!
     socket.on('draw_3d_house', (data) => {
       const initialY = data.type === 'math' ? (data.params.height || 2) / 2 : 0;
       const newObject = { ...data, id: Date.now(), x: data.x || 0, y: data.y || initialY, z: data.z || 0 };
@@ -112,16 +108,13 @@ export default function App() {
       setSelectedId(newObject.id); 
       setActiveTab('3D');
     });
-
-    return () => {
-      socket.off('projects_list'); socket.off('project_loaded'); socket.off('cop_reply'); socket.off('draw_3d_house');
-    };
+    return () => { socket.off('projects_list'); socket.off('project_loaded'); socket.off('cop_reply'); socket.off('draw_3d_house'); };
   }, []);
 
-  // ⌨️ KEYBOARD SHORTCUTS
+  // ⌨️ SHORTCUTS
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT') return; 
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'DIV' && e.target.isContentEditable) return; 
       if (e.key === 'Delete' || e.key === 'Backspace') setSceneObjects(prev => prev.filter(obj => obj.id !== selectedId));
       if (e.key === 'm' || e.key === 'M') setGizmoMode('translate');
       if (e.key === 'r' || e.key === 'R') setGizmoMode('rotate');
@@ -157,6 +150,7 @@ export default function App() {
 
   return (
     <div className="studio-container">
+      {/* 🏷️ TOP BAR */}
       <div className="top-bar">
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
           <button className="toggle-btn" onClick={() => { setLeftOpen(!leftOpen); setRightOpen(false); }}>☰ Menu</button>
@@ -172,20 +166,19 @@ export default function App() {
         </div>
 
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          <button className="btn-massive" style={{ padding: '8px 15px', fontSize: '12px' }} onClick={saveToCloud}>💾 Save</button>
+          <button className="btn-massive" onClick={saveToCloud}>💾 Save</button>
           <button className="toggle-btn" onClick={() => { setRightOpen(!rightOpen); setLeftOpen(false); }}>⚙️ Tools</button>
         </div>
       </div>
 
-      {/* ⬅️ LEFT DOCK (Fixed CSS Slide Animation) */}
-      <div className="left-sidebar" style={{ top: '60px', zIndex: 40, transform: leftOpen ? 'translateX(0)' : 'translateX(-100%)' }}>
+      {/* ⬅️ LEFT DOCK (Fixed CSS classes!) */}
+      <div className={`left-sidebar ${leftOpen ? 'open' : ''}`}>
         <div className="sidebar-section" style={{display: 'flex', justifyContent: 'space-between'}}>
             <h4 className="sidebar-title">Cloud Projects</h4>
             <button className="toggle-btn" onClick={() => setLeftOpen(false)}>✖</button>
         </div>
         <div className="sidebar-section">
           <button className="build-btn" style={{ width: '100%', marginBottom: '15px' }} onClick={() => { setNodes2D([]); setSceneObjects([]); setCurrentProject({ id: null, name: "New Blueprint" }); setActiveTab('2D'); }}>+ New Blueprint</button>
-          <h4 className="sidebar-title">Database</h4>
           <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
             {savedProjects.length === 0 ? <p style={{ fontSize: '12px', color: '#555' }}>No projects saved yet.</p> : savedProjects.map(proj => (
                 <p key={proj._id} onClick={() => socket.emit('load_project', proj._id)} style={{ fontSize: '13px', color: '#00ffcc', cursor: 'pointer', borderBottom: '1px solid #222', paddingBottom: '5px' }}>📁 {proj.name}</p>
@@ -194,8 +187,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* ➡️ RIGHT DOCK (Fixed CSS Slide + Gizmo Tools) */}
-      <div className="right-sidebar" style={{ top: '60px', zIndex: 40, transform: rightOpen ? 'translateX(0)' : 'translateX(100%)' }}>
+      {/* ➡️ RIGHT DOCK (Fixed CSS classes!) */}
+      <div className={`right-sidebar ${rightOpen ? 'open' : ''}`}>
         <div className="sidebar-section" style={{display: 'flex', justifyContent: 'space-between'}}>
             <h4 className="sidebar-title">Inspector</h4>
             <button className="toggle-btn" onClick={() => setRightOpen(false)}>✖</button>
@@ -205,7 +198,6 @@ export default function App() {
           <input className="magic-input" style={{ width: '100%', padding: '5px', marginTop: '5px', fontSize: '14px', borderBottom: '1px solid #444' }} value={currentProject.name} onChange={(e) => setCurrentProject({...currentProject, name: e.target.value})} />
         </div>
         
-        {/* Gizmo Tools Restored */}
         <div className="sidebar-section">
           <h4 className="sidebar-title">Gizmo Tools (Props)</h4>
           <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
@@ -223,19 +215,23 @@ export default function App() {
         </div>
       </div>
 
+      {/* 💬 TAB 1: CHAT */}
       {activeTab === 'Chat' && (
-        <div className="ui-overlay chat-container">
-          {chatLog.map((log, i) => (
-            <div key={i} className={`chat-bubble ${log.sender}`}>{log.sender === 'ai' ? '🏗️ : ' : '👤 : '} {log.text}</div>
-          ))}
+        <div className="ui-overlay">
+          <div className="chat-container">
+            {chatLog.map((log, i) => (
+              <div key={i} className={`chat-bubble ${log.sender}`}>{log.sender === 'ai' ? '🏗️ : ' : '👤 : '} {log.text}</div>
+            ))}
+          </div>
         </div>
       )}
 
+      {/* 📐 TAB 2: 2D BLUEPRINT */}
       {activeTab === '2D' && (
-        <div className="ui-overlay" style={{ alignItems: 'center' }}>
+        <div className="ui-overlay">
           <h2>Interactive Blueprint: {currentProject.name}</h2>
-          <p style={{ color: '#aaa' }}>Click the grid to draw walls. Go to Tab 3 to see the 3D Extrusion.</p>
-          <div className="blueprint-paper" style={{ position: 'relative', cursor: 'crosshair', overflow: 'hidden' }} onClick={handle2DCanvasClick}>
+          <p style={{ color: '#aaa' }}>Click the grid to draw locked concrete walls.</p>
+          <div className="blueprint-paper" onClick={handle2DCanvasClick} style={{ position: 'relative' }}>
             <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
               {nodes2D.map((node, i) => {
                 if (i === 0) return null;
@@ -253,6 +249,7 @@ export default function App() {
         </div>
       )}
 
+      {/* 🎮 TAB 3: 3D EXTRUSION & GIZMO */}
       <div style={{ position: 'absolute', top: '0', left: 0, right: 0, bottom: 0, zIndex: 1, visibility: activeTab === '3D' ? 'visible' : 'hidden' }}>
         <Canvas shadows="basic" camera={{ position: [15, 15, 15], fov: 40 }} onPointerMissed={() => setSelectedId(null)}>
           <ambientLight intensity={0.5} />
@@ -262,41 +259,68 @@ export default function App() {
           <OrbitControls makeDefault minDistance={5} maxDistance={50} />
           
           <Suspense fallback={null}>
-            {/* 1. Render the Locked Concrete Walls */}
             {nodes2D.map((node, i) => {
               if (i === 0) return null;
               return <Wall key={`wall-${i}`} start={nodes2D[i-1]} end={node} />;
             })}
-            
-            {/* 2. Render the AI Props (with Gizmo!) */}
             {sceneObjects.map(obj => (
-              <SceneItem 
-                key={obj.id} 
-                data={obj} 
-                isSelected={selectedId === obj.id} 
-                onSelect={setSelectedId} 
-                gizmoMode={gizmoMode} 
-                updateTransform={updateObjectTransform} 
-              />
+              <SceneItem key={obj.id} data={obj} isSelected={selectedId === obj.id} onSelect={setSelectedId} gizmoMode={gizmoMode} updateTransform={updateObjectTransform} />
             ))}
           </Suspense>
         </Canvas>
       </div>
 
-      {(activeTab === 'Anim' || activeTab === 'Pres') && (
-        <div className="ui-overlay" style={{ justifyContent: 'center', textAlign: 'center' }}>
-          <h2>{activeTab === 'Anim' ? 'Animation Timeline' : 'Presentation Studio'}</h2>
-          <p style={{ color: '#888' }}>Data synced with MongoDB. Awaiting server backend integration.</p>
+      {/* 🎬 TAB 4: ANIMATION */}
+      {activeTab === 'Anim' && (
+        <div className="ui-overlay">
+          <h2>Director's Timeline</h2>
+          <p style={{ color: '#888' }}>Set up cinematic camera tracking paths.</p>
+          <div style={{ width: '80%', height: '100px', background: '#222', margin: '20px auto', borderRadius: '8px', border: '1px solid #444', display: 'flex', alignItems: 'center', padding: '10px' }}>
+             <div style={{ width: '20%', background: '#00ffcc', height: '10px', borderRadius: '5px' }}></div>
+             <span style={{ marginLeft: '10px', fontSize: '12px', color: '#aaa' }}>Camera Path A (Kitchen Walkthrough)</span>
+          </div>
         </div>
       )}
 
+      {/* 📊 TAB 5: CANVA PRESENTATION RESTORED */}
+      {activeTab === 'Pres' && (
+        <div className="ui-overlay">
+          <div style={{ width: '100%', maxWidth: '1200px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2>Slide Studio: {currentProject.name}</h2>
+            <div style={{ display: 'flex', gap: '10px' }}>
+               <button className="build-btn" style={{ background: '#ff0055', color: 'white' }}>🎬 Render Video (Female Voice)</button>
+               <button className="build-btn">⬇️ Download PDF</button>
+            </div>
+          </div>
+          <div className="canva-workspace">
+            <div className="slide-sidebar">
+              <div className="slide-thumbnail active"><strong>Slide 1</strong><span>Cover Page</span></div>
+              <div className="slide-thumbnail"><strong>Slide 2</strong><span>2D Blueprint</span></div>
+              <div className="slide-thumbnail"><strong>Slide 3</strong><span>Data & Cost</span></div>
+            </div>
+            <div className="slide-canvas-container">
+              <div className="active-slide">
+                <div className="editable-text slide-title" contentEditable suppressContentEditableWarning>{currentProject.name} Proposal</div>
+                <div className="editable-text slide-subtitle" contentEditable suppressContentEditableWarning>Prepared by Pictopulse Architecture AI</div>
+                <div className="editable-text" style={{ fontSize: '14px', color: '#333', marginTop: '20px' }} contentEditable suppressContentEditableWarning>
+                  This presentation outlines the structural and spatial design. The following slides contain the CAD blueprints, 3D renders, and the bill of materials.
+                  <br/><br/>
+                  * Total Walls: {Math.max(0, nodes2D.length - 1)}<br/>
+                  * Total 3D Props: {sceneObjects.length}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ⌨️ COMMAND BAR */}
       {(activeTab === 'Chat' || activeTab === '3D') && (
         <div className="floating-command">
            <input className="magic-input" placeholder="Type a prompt to build props..." value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleBuild()} />
            <button className="build-btn" onClick={handleBuild}>Send</button>
         </div>
       )}
-
     </div>
   );
 }

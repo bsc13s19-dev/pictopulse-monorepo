@@ -7,10 +7,9 @@ import './App.css';
 
 const socket = io('https://pictopulse-backend.onrender.com'); 
 
-// 🧱 THE BUG-FREE TOY BLOCK (Saves Scale, Rotation, and Position!)
+// 🧱 THE BLOCK COMPONENT
 function SceneItem({ data, isSelected, onSelect, gizmoMode, saveHistory, updateTransform }) {
   const meshRef = useRef();
-
   let content = null;
   if (data.type === 'model') {
     const { scene } = useGLTF(data.url);
@@ -28,7 +27,6 @@ function SceneItem({ data, isSelected, onSelect, gizmoMode, saveHistory, updateT
     );
   }
 
-  // 🐛 FIX: Saves all 9 dimensions so the rubber band NEVER snaps back!
   const handleDragEnd = () => {
     if (meshRef.current) {
       updateTransform(data.id, {
@@ -39,16 +37,8 @@ function SceneItem({ data, isSelected, onSelect, gizmoMode, saveHistory, updateT
     }
   };
 
-  // Start drag = save history for Ctrl+Z
-  const handleDragStart = () => saveHistory();
-
   return (
-    <TransformControls 
-      mode={gizmoMode} 
-      showX={isSelected} showY={isSelected} showZ={isSelected} // Hide arrows if not selected
-      onMouseUp={handleDragEnd} 
-      onMouseDown={handleDragStart}
-    >
+    <TransformControls mode={gizmoMode} showX={isSelected} showY={isSelected} showZ={isSelected} onMouseUp={handleDragEnd} onMouseDown={saveHistory}>
       <group 
         ref={meshRef} 
         position={[data.x, data.y, data.z]} 
@@ -77,15 +67,14 @@ function CameraDirector({ camView }) {
   return null;
 }
 
-// 🌍 THE MAIN ENGINE APP
+// 🌍 MAIN APP
 export default function App() {
   const [prompt, setPrompt] = useState("");
-  const [chatLog, setChatLog] = useState([{ sender: 'ai', text: 'Welcome. Use PC Shortcuts (G, R, S, Delete) or Mobile PUBG controls!' }]);
-  
+  const [chatLog, setChatLog] = useState([{ sender: 'ai', text: 'Welcome. Use PC Shortcuts or Mobile PUBG controls!' }]);
   const [sceneObjects, setSceneObjects] = useState([]);
-  const [historyStack, setHistoryStack] = useState([]); // 🕰️ The Ctrl+Z Time Machine Memory!
-  
+  const [historyStack, setHistoryStack] = useState([]); 
   const [selectedId, setSelectedId] = useState(null); 
+  
   const [leftOpen, setLeftOpen] = useState(false); 
   const [rightOpen, setRightOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('Chat'); 
@@ -95,30 +84,15 @@ export default function App() {
   const [floorType, setFloorType] = useState('grid'); 
   const [camView, setCamView] = useState('Free'); 
 
-  // 🕰️ TIME MACHINE LOGIC
-  const saveHistory = () => setHistoryStack(prev => [...prev.slice(-10), sceneObjects]); // Keeps last 10 moves
-  
-  const undo = () => {
-    if (historyStack.length > 0) {
-      setSceneObjects(historyStack[historyStack.length - 1]);
-      setHistoryStack(prev => prev.slice(0, -1));
-    }
-  };
+  // 🕰️ TIME MACHINE
+  const saveHistory = () => setHistoryStack(prev => [...prev.slice(-10), sceneObjects]); 
+  const undo = () => { if (historyStack.length > 0) { setSceneObjects(historyStack[historyStack.length - 1]); setHistoryStack(prev => prev.slice(0, -1)); } };
+  const deleteSelected = () => { if (selectedId) { saveHistory(); setSceneObjects(prev => prev.filter(obj => obj.id !== selectedId)); setSelectedId(null); } };
 
-  const deleteSelected = () => {
-    if (selectedId) {
-      saveHistory();
-      setSceneObjects(prev => prev.filter(obj => obj.id !== selectedId));
-      setSelectedId(null);
-    }
-  };
-
-  // ⌨️ KEYBOARD SHORTCUTS
+  // ⌨️ SHORTCUTS
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Don't trigger if the user is typing in the chat input
       if (e.target.tagName === 'INPUT') return; 
-      
       if (e.key === 'Delete' || e.key === 'Backspace') deleteSelected();
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') undo();
       if (e.key === 'g' || e.key === 'G') setGizmoMode('translate');
@@ -130,11 +104,11 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedId, sceneObjects, historyStack]);
 
+  // 🔌 SOCKETS
   useEffect(() => {
     socket.on('cop_reply', (msg) => setChatLog(prev => [...prev, { sender: 'ai', text: msg }]));
-    
     socket.on('draw_3d_house', (data) => {
-      saveHistory(); // Save time machine state before building!
+      saveHistory(); 
       const initialY = data.type === 'math' ? data.params.height / 2 : 0;
       const newObject = { ...data, id: Date.now(), x: 0, y: initialY, z: 0 };
       setSceneObjects((prev) => [...prev, newObject]);
@@ -143,32 +117,23 @@ export default function App() {
       setCamView('Free'); 
     });
     return () => { socket.off('cop_reply'); socket.off('draw_3d_house'); };
-  }, [sceneObjects]); // added dependency so saveHistory gets latest state
+  }, [sceneObjects]); 
 
-  // 🗣️ NLP PROMPT INTERCEPTOR
+  // 🗣️ BUILD LOGIC
   const handleBuild = () => { 
     if (!prompt) return;
     const p = prompt.toLowerCase();
-    
-    // Check if the user is issuing Gizmo Commands!
-    if (p.includes('disable gizmo') || p.includes('hide gizmo') || p.includes('stop gizmo')) {
-      setSelectedId(null); setPrompt(""); return;
-    }
-    if (p.includes('enable gizmo') || p.includes('start gizmo')) {
-      if (sceneObjects.length > 0) setSelectedId(sceneObjects[sceneObjects.length - 1].id);
-      setPrompt(""); return;
-    }
+    if (p.includes('disable gizmo') || p.includes('hide gizmo') || p.includes('stop gizmo')) { setSelectedId(null); setPrompt(""); return; }
+    if (p.includes('enable gizmo') || p.includes('start gizmo')) { if (sceneObjects.length > 0) setSelectedId(sceneObjects[sceneObjects.length - 1].id); setPrompt(""); return; }
 
     setChatLog(prev => [...prev, { sender: 'user', text: prompt }]);
     socket.emit('build_house', prompt); 
     setPrompt(""); 
   };
 
-  const updateObjectTransform = (id, newTransform) => {
-    setSceneObjects(prev => prev.map(obj => obj.id === id ? { ...obj, ...newTransform } : obj));
-  };
+  const updateObjectTransform = (id, newTransform) => { setSceneObjects(prev => prev.map(obj => obj.id === id ? { ...obj, ...newTransform } : obj)); };
 
-  // 🎮 MANUAL MOVEMENT (For Mobile D-Pad and PC Buttons)
+  // 🎮 MANUAL MOVEMENT
   const manualMove = (dir) => {
     if (!selectedId) return;
     saveHistory();
@@ -176,10 +141,8 @@ export default function App() {
     setSceneObjects(prev => prev.map(obj => {
       if (obj.id !== selectedId) return obj;
       let nx = obj.x || 0, nz = obj.z || 0;
-      if (dir === 'up') nz -= speed;
-      if (dir === 'down') nz += speed;
-      if (dir === 'left') nx -= speed;
-      if (dir === 'right') nx += speed;
+      if (dir === 'up') nz -= speed; if (dir === 'down') nz += speed;
+      if (dir === 'left') nx -= speed; if (dir === 'right') nx += speed;
       return { ...obj, x: nx, z: nz };
     }));
   };
@@ -187,26 +150,75 @@ export default function App() {
   return (
     <div className="studio-container">
       
-      {/* 🏷️ TOP BAR */}
+      {/* 🏷️ TOP BAR (ALL 5 TABS RESTORED!) */}
       <div className="top-bar">
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          <button className="toggle-btn" onClick={() => setLeftOpen(!leftOpen)}>☰ Menu</button>
+          <button className="toggle-btn" onClick={() => { setLeftOpen(!leftOpen); setRightOpen(false); }}>☰ Menu</button>
           <strong style={{ fontSize: '18px', letterSpacing: '2px', color: '#00ffcc' }}>PICTOPULSE</strong>
         </div>
+        
+        {/* Mobile-Friendly Swipeable Tabs */}
         <div className="tabs-container">
           <button className={`tab-btn ${activeTab === 'Chat' ? 'active' : ''}`} onClick={() => setActiveTab('Chat')}>1. Chat</button>
-          <button className={`tab-btn ${activeTab === '3D' ? 'active' : ''}`} onClick={() => setActiveTab('3D')}>2. Studio</button>
-          <button className={`tab-btn ${activeTab === 'Render' ? 'active' : ''}`} onClick={() => setActiveTab('Render')}>3. Render</button>
+          <button className={`tab-btn ${activeTab === '2D' ? 'active' : ''}`} onClick={() => setActiveTab('2D')}>2. 2D Plan</button>
+          <button className={`tab-btn ${activeTab === '3D' ? 'active' : ''}`} onClick={() => setActiveTab('3D')}>3. 3D Studio</button>
+          <button className={`tab-btn ${activeTab === 'Anim' ? 'active' : ''}`} onClick={() => setActiveTab('Anim')}>4. Animation</button>
+          <button className={`tab-btn ${activeTab === 'Render' ? 'active' : ''}`} onClick={() => setActiveTab('Render')}>5. Render</button>
         </div>
+
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          <button className="toggle-btn" onClick={() => setRightOpen(!rightOpen)}>⚙️ Tools</button>
+          <button className="toggle-btn" onClick={() => { setRightOpen(!rightOpen); setLeftOpen(false); }}>⚙️ Tools</button>
+          <div className="user-profile">
+            <div className="avatar">G</div>
+            <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Guest</span>
+          </div>
         </div>
       </div>
 
-      {/* ⬅️ & ➡️ DOCKS OMITTED FOR SPACE, BUT THEY REMAIN THE EXACT SAME AS V3.1 */}
-      
+      {/* ⬅️ LEFT DOCK */}
+      <div className={`left-sidebar ${leftOpen ? '' : 'closed'}`}>
+        <div className="sidebar-section" style={{display: 'flex', justifyContent: 'space-between'}}>
+            <h4 className="sidebar-title">Menu</h4>
+            <button className="toggle-btn" onClick={() => setLeftOpen(false)}>✖</button>
+        </div>
+        <div className="sidebar-section">
+          <button className="build-btn" style={{ width: '100%', marginBottom: '15px' }} onClick={() => { setSceneObjects([]); setSelectedId(null); setLeftOpen(false); }}>+ New Project</button>
+          <h4 className="sidebar-title">Recent Projects</h4>
+          <p style={{ fontSize: '13px', color: '#888', cursor: 'pointer' }}>📁 Cyberpunk City</p>
+        </div>
+      </div>
+
+      {/* ➡️ RIGHT DOCK */}
+      <div className={`right-sidebar ${rightOpen ? '' : 'closed'}`}>
+        <div className="sidebar-section" style={{display: 'flex', justifyContent: 'space-between'}}>
+            <h4 className="sidebar-title">Inspector</h4>
+            <button className="toggle-btn" onClick={() => setRightOpen(false)}>✖</button>
+        </div>
+        <div className="sidebar-section">
+          <h4 className="sidebar-title">Scene Hierarchy</h4>
+          <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+            {sceneObjects.map((obj, i) => (
+              <div key={obj.id} className={`outliner-item ${selectedId === obj.id ? 'active' : ''}`} onClick={() => setSelectedId(obj.id)}>
+                {obj.type === 'model' ? `📦 Model ${i+1}` : `📐 ${obj.params.shape} ${i+1}`}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="sidebar-section">
+          <h4 className="sidebar-title">Environment</h4>
+          <select className="pro-select" value={envPreset} onChange={(e) => setEnvPreset(e.target.value)}>
+             <option value="studio">💡 Studio</option>
+             <option value="city">🌆 City</option>
+          </select>
+          <select className="pro-select" value={floorType} onChange={(e) => setFloorType(e.target.value)}>
+             <option value="grid">📐 Grid</option>
+             <option value="marble">🏛️ Marble</option>
+          </select>
+        </div>
+      </div>
+
       {/* 🎮 3D CANVAS */}
-      <div style={{ position: 'absolute', top: '0', left: 0, right: 0, bottom: 0, zIndex: 1, paddingTop: '100px' }}>
+      <div style={{ position: 'absolute', top: '0', left: 0, right: 0, bottom: 0, zIndex: 1 }}>
         <div className="camera-controls">
           {['Free', 'Top', 'Front', 'Side'].map(view => (
              <button key={view} className={`cam-btn ${camView === view ? 'active' : ''}`} onClick={() => setCamView(view)}>{view}</button>
@@ -242,25 +254,39 @@ export default function App() {
       {activeTab === 'Chat' && (
         <div className="ui-overlay chat-container">
           {chatLog.map((log, i) => (
-            <div key={i} className={`chat-bubble ${log.sender}`}>{log.sender === 'ai' ? '🤖 Orchestrator: ' : '👤 You: '} {log.text}</div>
+            <div key={i} className={`chat-bubble ${log.sender}`}>{log.sender === 'ai' ? '🤖 : ' : '👤 : '} {log.text}</div>
           ))}
         </div>
       )}
+      {(activeTab === '2D' || activeTab === 'Anim') && (
+        <div className="ui-overlay" style={{ justifyContent: 'center', textAlign: 'center' }}>
+          <h2 style={{ color: 'white' }}>{activeTab} Mode</h2><p style={{ color: '#777' }}>Feature architecture in progress.</p>
+        </div>
+      )}
+      {activeTab === 'Render' && (
+        <div className="ui-overlay" style={{ justifyContent: 'center', textAlign: 'center' }}>
+          <h1 style={{ color: 'white' }}>Director's Bay</h1>
+          <p style={{ color: '#00ffcc' }}>🎙️ Rendering spatial audio with the designated female voice track...</p>
+        </div>
+      )}
 
-      {/* THE COMMAND BAR WITH MANUAL PC CONTROLS */}
+      {/* ⌨️ COMMAND BAR */}
       {(activeTab === 'Chat' || activeTab === '3D') && (
-        <div className="floating-command" style={{ flexDirection: 'column' }}>
-           <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="floating-command">
+           <div className="command-row">
              <button className="toggle-btn">📎</button>
-             <input className="magic-input" placeholder="E.g. Build a red box, or type 'disable gizmo'" value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleBuild()} />
+             <input className="magic-input" placeholder="Type prompt, or 'disable gizmo'" value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleBuild()} />
              <button className="build-btn" onClick={handleBuild}>Generate</button>
            </div>
            
-           {/* PC Manual Buttons (Show only if object is selected) */}
+           {/* PC Manual Buttons */}
            {activeTab === '3D' && selectedId && (
              <div className="manual-pc-controls">
+                <button className="coord-btn" onClick={() => setGizmoMode('translate')}>Move (G)</button>
+                <button className="coord-btn" onClick={() => setGizmoMode('rotate')}>Rotate (R)</button>
+                <button className="coord-btn" onClick={() => setGizmoMode('scale')}>Scale (S)</button>
                 <button className="coord-btn" onClick={() => undo()}>↩ Undo</button>
-                <button className="coord-btn" onClick={() => deleteSelected()}>🗑️ Delete</button>
+                <button className="coord-btn" onClick={() => deleteSelected()}>🗑️ Del</button>
              </div>
            )}
         </div>

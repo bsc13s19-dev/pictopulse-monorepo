@@ -2,69 +2,71 @@
 body, html, #root { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background-color: #050505; color: white; font-family: 'Segoe UI', sans-serif; }
 .studio-container { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
 
-/* ⬅️ Left & ➡️ Right Docks */
-.left-sidebar, .right-sidebar { position: absolute; top: 60px; bottom: 0; background: rgba(10, 10, 10, 0.95); border: 1px solid #222; backdrop-filter: blur(10px); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; z-index: 40; }
+/* ⬅️ & ➡️ Floating Docks */
+.left-sidebar, .right-sidebar { position: absolute; top: 0; bottom: 0; background: rgba(10, 10, 10, 0.95); border: 1px solid #222; backdrop-filter: blur(10px); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; z-index: 100; }
 .left-sidebar { left: 0; width: 320px; border-right: 1px solid #222; }
 .left-sidebar.closed { transform: translateX(-100%); }
 .right-sidebar { right: 0; width: 320px; border-left: 1px solid #222; }
 .right-sidebar.closed { transform: translateX(100%); }
-
 .sidebar-section { padding: 15px; border-bottom: 1px solid #1a1a1a; }
 .sidebar-title { margin: 0 0 10px 0; color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
 
 /* 🏷️ Top Navigation Bar */
-.top-bar { position: absolute; top: 0; left: 0; right: 0; height: 60px; background: rgba(10, 10, 10, 0.9); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; border-bottom: 1px solid #222; z-index: 50; backdrop-filter: blur(10px); }
-.tabs-container { display: flex; gap: 10px; position: absolute; left: 50%; transform: translateX(-50%); }
+.top-bar { position: absolute; top: 0; left: 0; right: 0; min-height: 60px; background: rgba(10, 10, 10, 0.9); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; border-bottom: 1px solid #222; z-index: 50; backdrop-filter: blur(10px); }
+
+/* 📱 SWIPEABLE TABS (Fixes the missing tabs issue!) */
+.tabs-container { display: flex; gap: 10px; position: absolute; left: 50%; transform: translateX(-50%); max-width: 50vw; overflow-x: auto; scrollbar-width: none; }
+.tabs-container::-webkit-scrollbar { display: none; }
 .tab-btn { background: transparent; color: #555; border: none; font-size: 13px; font-weight: 600; cursor: pointer; padding: 10px 15px; transition: 0.2s; border-radius: 6px; white-space: nowrap; }
 .tab-btn:hover { color: #fff; background: #222; }
 .tab-btn.active { color: #00ffcc; background: rgba(0, 255, 204, 0.1); }
 
-/* 🔲 UI Overlays */
+/* UI Overlay & Chat */
 .ui-overlay { position: absolute; top: 60px; left: 0; right: 0; bottom: 0; background: #0e0e0e; z-index: 20; display: flex; flex-direction: column; align-items: center; overflow-y: auto; }
-.user-profile { display: flex; align-items: center; gap: 10px; background: #111; padding: 5px 15px 5px 5px; border-radius: 30px; border: 1px solid #333; cursor: pointer; }
-.avatar { width: 30px; height: 30px; background: #333; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: white; font-weight: bold; font-size: 12px; }
-.toggle-btn, .cam-btn { background: #222; color: white; border: 1px solid #444; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: 0.2s; }
-.toggle-btn:hover, .cam-btn:hover, .cam-btn.active { background: #00ffcc; color: black; }
-
-/* 💬 Chat & Outliner */
 .chat-container { width: 100%; padding: 40px; display: flex; flex-direction: column; align-items: center; }
 .chat-bubble { max-width: 800px; width: 100%; padding: 20px; border-radius: 12px; margin-bottom: 20px; font-size: 15px; line-height: 1.5; }
 .chat-bubble.ai { background: #151515; border: 1px solid #222; color: #ddd; }
 .chat-bubble.user { background: #00ffcc; color: black; font-weight: 500; align-self: flex-end; }
-.outliner-item { padding: 8px 12px; background: #151515; border: 1px solid #222; margin-bottom: 5px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #aaa; transition: 0.2s; }
-.outliner-item:hover { background: #222; color: white; }
-.outliner-item.active { background: #00ffcc; color: black; font-weight: bold; }
 
-/* ⌨️ Command Bar */
-.floating-command { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; background: rgba(15, 15, 15, 0.95); padding: 8px 12px; border-radius: 20px; border: 1px solid #333; z-index: 60; box-shadow: 0 10px 40px rgba(0,0,0,0.9); }
+/* ⌨️ Bottom Command Bar */
+.floating-command { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; background: rgba(15, 15, 15, 0.95); padding: 12px; border-radius: 20px; border: 1px solid #333; z-index: 60; box-shadow: 0 10px 40px rgba(0,0,0,0.9); width: auto; }
+.command-row { display: flex; gap: 10px; width: 100%; justify-content: center; }
 .magic-input { background: transparent; border: none; color: white; padding: 10px; width: 400px; font-size: 15px; outline: none; }
-.build-btn { background: #00ffcc; color: black; border: none; padding: 10px 20px; border-radius: 12px; font-weight: bold; cursor: pointer; }
+.build-btn, .toggle-btn, .cam-btn, .coord-btn { background: #222; color: white; border: 1px solid #444; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: 0.2s; font-weight: bold; }
+.build-btn { background: #00ffcc; color: black; }
+.toggle-btn:hover, .cam-btn:hover, .cam-btn.active, .coord-btn:hover { background: #00ffcc; color: black; }
 
-/* 🎮 MANUAL CONTROLS (PC Below, Mobile PUBG) */
+/* 🎮 Camera & Controls */
 .camera-controls { position: absolute; top: 80px; right: 20px; display: flex; gap: 5px; background: rgba(0,0,0,0.7); padding: 5px; border-radius: 8px; z-index: 15; backdrop-filter: blur(5px); }
-
-.manual-pc-controls { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
-.coord-btn { background: #222; color: white; border: 1px solid #444; border-radius: 4px; padding: 5px 10px; font-weight: bold; cursor: pointer; }
-.coord-btn:hover { background: #00ffcc; color: black; }
-
+.manual-pc-controls { display: flex; gap: 10px; justify-content: center; width: 100%; }
 .mobile-dpad { display: none; }
 
-/* 📱 MOBILE RESPONSIVENESS (PUBG Game Controls) */
+/* 👤 User & List */
+.user-profile { display: flex; align-items: center; gap: 10px; background: #111; padding: 5px 15px 5px 5px; border-radius: 30px; border: 1px solid #333; cursor: pointer; }
+.avatar { width: 30px; height: 30px; background: #333; border-radius: 50%; display: flex; justify-content: center; align-items: center; }
+.outliner-item { padding: 8px 12px; background: #151515; border: 1px solid #222; margin-bottom: 5px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #aaa; }
+.outliner-item.active { background: #00ffcc; color: black; font-weight: bold; }
+.pro-select, .pro-slider { width: 100%; background: #111; color: white; border: 1px solid #333; padding: 8px; border-radius: 5px; margin-top: 5px; outline: none; }
+
+/* 📱 MOBILE RESPONSIVENESS (The Magic Fix!) */
 @media (max-width: 768px) {
   .left-sidebar, .right-sidebar { width: 100%; }
-  .floating-command { width: 95%; flex-wrap: wrap; justify-content: center; bottom: 10px; border-radius: 10px; }
-  .magic-input { width: 100%; text-align: center; }
-  .top-bar { padding: 0 10px; flex-direction: column; height: auto; padding-top: 10px; gap: 10px; }
-  .tabs-container { position: static; transform: none; overflow-x: auto; width: 100%; padding-bottom: 5px; margin-top: 5px; }
+  .top-bar { flex-wrap: wrap; padding: 10px; height: auto; justify-content: space-between; }
+  .tabs-container { position: relative; left: 0; transform: none; max-width: 100%; width: 100%; order: 3; margin-top: 10px; padding-bottom: 5px; }
   .user-profile span { display: none; } 
-  .camera-controls { top: 120px; }
+  .ui-overlay { top: 100px; }
+  .camera-controls { top: 120px; right: 10px; flex-direction: column; }
   
-  /* 🎮 The Mobile Free-Fire Joystick D-Pad! */
+  .floating-command { width: 95%; bottom: 10px; padding: 10px; }
+  .magic-input { width: 100%; text-align: center; font-size: 14px; }
+  .command-row { flex-wrap: wrap; }
+  
+  /* 🎮 Mobile PUBG Controls Layout */
   .mobile-dpad {
-    display: grid; grid-template-columns: 50px 50px 50px; grid-template-rows: 50px 50px 50px;
-    position: absolute; bottom: 120px; left: 20px; z-index: 30; opacity: 0.8;
+    display: grid; grid-template-columns: 45px 45px 45px; grid-template-rows: 45px 45px 45px;
+    position: absolute; bottom: 140px; left: 20px; z-index: 30; opacity: 0.85; gap: 5px;
   }
-  .dpad-btn { background: rgba(255, 255, 255, 0.1); border: 2px solid #00ffcc; border-radius: 50%; color: white; font-weight: bold; font-size: 20px; }
+  .dpad-btn { background: rgba(0, 0, 0, 0.5); border: 2px solid #00ffcc; border-radius: 50%; color: white; font-weight: bold; font-size: 16px; backdrop-filter: blur(5px); }
   .dpad-up { grid-column: 2; grid-row: 1; }
   .dpad-down { grid-column: 2; grid-row: 3; }
   .dpad-left { grid-column: 1; grid-row: 2; }

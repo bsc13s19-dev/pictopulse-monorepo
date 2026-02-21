@@ -323,11 +323,18 @@ export default function App() {
               <div className="active-slide">
                 <div className="editable-text slide-title" contentEditable suppressContentEditableWarning>{currentProject.name} Proposal</div>
                 <div className="editable-text slide-subtitle" contentEditable suppressContentEditableWarning>Prepared by Pictopulse Architecture AI</div>
-                <div className="editable-text" style={{ fontSize: '14px', color: '#333', marginTop: '20px' }} contentEditable suppressContentEditableWarning>
+                
+                {/* 1. The Typing Box (You can type here, React won't touch it!) */}
+                <div className="editable-text" style={{ fontSize: '14px', color: '#333', marginTop: '20px', minHeight: '50px' }} contentEditable suppressContentEditableWarning>
                   This presentation outlines the structural and spatial design. The following slides contain the CAD blueprints, 3D renders, and the bill of materials.
-                  <br/><br/>
+                </div>
+
+                {/* 2. The Math Robot Box (React updates this instantly!) */}
+                <div style={{ marginTop: '20px', padding: '15px', background: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee', fontSize: '14px', color: '#111' }}>
+                  <strong>📊 Live Project Data:</strong><br/><br/>
                   * Total Walls: {Math.max(0, nodes2D.length - 1)}<br/>
-                  * Total 3D Props: {sceneObjects.length}
+                  * Total 3D Props: {sceneObjects.length}<br/>
+                  * 📏 Estimated Area: <strong style={{color: '#ff0055'}}>{Math.round(calculateArea(nodes2D))} Square Feet</strong>
                 </div>
               </div>
             </div>

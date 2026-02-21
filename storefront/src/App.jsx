@@ -173,15 +173,27 @@ export default function App() {
     setPrompt("");
   };
 
+  // 📐 2D DRAFTING LOGIC (Now with Super Magnets!)
   const handle2DCanvasClick = (e) => {
     const rect = e.target.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 20 - 10;
-    const y = ((e.clientY - rect.top) / rect.height) * 20 - 10;
-    setNodes2D(prev => [...prev, { x, y }]);
-  };
+    const clickX = ((e.clientX - rect.left) / rect.width) * 20 - 10;
+    const clickY = ((e.clientY - rect.top) / rect.height) * 20 - 10;
 
-  const updateObjectTransform = (id, newTransform) => { 
-    setSceneObjects(prev => prev.map(obj => obj.id === id ? { ...obj, ...newTransform } : obj)); 
+    // 🧲 THE MAGNETIC SNAP: Are we trying to close the square?
+    if (nodes2D.length > 2) {
+      const firstDot = nodes2D[0];
+      // Math to check how close your mouse is to the first dot
+      const distance = Math.sqrt(Math.pow(clickX - firstDot.x, 2) + Math.pow(clickY - firstDot.y, 2));
+      
+      // If you click close to the start, SNAP it perfectly closed!
+      if (distance < 1.5) {
+        setNodes2D(prev => [...prev, { x: firstDot.x, y: firstDot.y }]);
+        return; // Stop here, don't use the messy mouse click!
+      }
+    }
+
+    // Otherwise, just draw a normal dot
+    setNodes2D(prev => [...prev, { x: clickX, y: clickY }]);
   };
 
   return (

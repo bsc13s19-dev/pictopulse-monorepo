@@ -23,46 +23,64 @@ function calculateArea(nodes) {
   return Math.abs(area / 2) * 15; 
 }
 
-// 🧱 THE BULLETPROOF LEGO WALL BUILDER (Now with Name Tags!)
+// 🧱 THE MASTER LEGO WALL BUILDER (Doors + Glass Windows!)
 function Wall({ start, end, wallIndex }) {
   const dx = end.x - start.x; const dz = end.y - start.y;
   const length = Math.sqrt(dx * dx + dz * dz);
   const angle = Math.atan2(dz, dx);
   const midX = (start.x + end.x) / 2; const midZ = (start.y + end.y) / 2;
 
-  // 1. If it is NOT the first wall (or if it's too short), build a SOLID block!
-  if (wallIndex !== 1 || length < 4) {
+  // 🚪 WALL #1: THE FRONT DOOR (If it's long enough)
+  if (wallIndex === 1 && length > 4) {
+    const doorWidth = 1.2;
+    const sideLength = (length - doorWidth) / 2; 
+    const sideOffset = (length / 2) - (sideLength / 2); 
+
     return (
-      <mesh position={[midX, 1.5, midZ]} rotation={[0, -angle, 0]} castShadow receiveShadow>
-        <boxGeometry args={[length, 3, 0.2]} />
-        <meshStandardMaterial color="#eeeeee" roughness={0.8} />
-      </mesh>
+      <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
+        <mesh position={[-sideOffset, 1.5, 0]} castShadow receiveShadow><boxGeometry args={[sideLength, 3, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
+        <mesh position={[sideOffset, 1.5, 0]} castShadow receiveShadow><boxGeometry args={[sideLength, 3, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
+        <mesh position={[0, 2.5, 0]} castShadow receiveShadow><boxGeometry args={[doorWidth, 1, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
+      </group>
     );
   }
 
-  // 2. If it IS Wall #1, use the LEGO TRICK to build a Doorway!
-  const doorWidth = 1.2;
-  const sideLength = (length - doorWidth) / 2; 
-  const sideOffset = (length / 2) - (sideLength / 2); 
+  // 🪟 WALL #2: THE GLASS WINDOW (The Donut Trick!)
+  if (wallIndex === 2 && length > 4) {
+    const winWidth = 1.5; // How wide the window is
+    const winHeight = 1;  // How tall the window is
+    const sillHeight = 1; // How far off the ground it is
+    const sideLength = (length - winWidth) / 2;
+    const sideOffset = (length / 2) - (sideLength / 2);
 
+    return (
+      <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
+        {/* 🧱 1. Left Concrete */}
+        <mesh position={[-sideOffset, 1.5, 0]} castShadow receiveShadow><boxGeometry args={[sideLength, 3, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
+        {/* 🧱 2. Right Concrete */}
+        <mesh position={[sideOffset, 1.5, 0]} castShadow receiveShadow><boxGeometry args={[sideLength, 3, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
+        {/* 🧱 3. Bottom Concrete (The Sill) */}
+        <mesh position={[0, sillHeight / 2, 0]} castShadow receiveShadow><boxGeometry args={[winWidth, sillHeight, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
+        {/* 🧱 4. Top Concrete */}
+        <mesh position={[0, 3 - (1 / 2), 0]} castShadow receiveShadow><boxGeometry args={[winWidth, 1, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
+        
+        {/* 🧊 5. THE MAGIC GLASS BLOCK! */}
+        <mesh position={[0, sillHeight + (winHeight / 2), 0]}>
+          {/* The glass is super thin (0.05) so it looks real! */}
+          <boxGeometry args={[winWidth, winHeight, 0.05]} />
+          {/* We turn ON 'transparent' and turn DOWN 'opacity' to make it see-through! */}
+          <meshStandardMaterial color="#88ccff" transparent={true} opacity={0.4} roughness={0.1} metalness={0.8} />
+        </mesh>
+      </group>
+    );
+  }
+
+  // 🧱 ALL OTHER WALLS: Just build a solid concrete block!
   return (
-    <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
-      {/* Left Wall */}
-      <mesh position={[-sideOffset, 1.5, 0]} castShadow receiveShadow>
-        <boxGeometry args={[sideLength, 3, 0.2]} />
-        <meshStandardMaterial color="#eeeeee" roughness={0.8} />
-      </mesh>
-      {/* Right Wall */}
-      <mesh position={[sideOffset, 1.5, 0]} castShadow receiveShadow>
-        <boxGeometry args={[sideLength, 3, 0.2]} />
-        <meshStandardMaterial color="#eeeeee" roughness={0.8} />
-      </mesh>
-      {/* Top Header */}
-      <mesh position={[0, 2.5, 0]} castShadow receiveShadow>
-        <boxGeometry args={[doorWidth, 1, 0.2]} />
-        <meshStandardMaterial color="#eeeeee" roughness={0.8} />
-      </mesh>
-    </group>
+    <mesh position={[midX, 1.5, midZ]} rotation={[0, -angle, 0]} castShadow receiveShadow>
+      <boxGeometry args={[length, 3, 0.2]} />
+      <meshStandardMaterial color="#eeeeee" roughness={0.8} />
+    </mesh>
   );
 }
 

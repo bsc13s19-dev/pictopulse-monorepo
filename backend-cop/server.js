@@ -280,7 +280,7 @@ export default function App() {
                   {room.map((node, i) => {
                     if (i === 0) return null;
                     const prev = room[i - 1];
-                    return <line key={i} x1={((prev.x + 10) / 20) * 800} y1={((prev.y + 10) / 20) * 400} x2={((node.x + 10) / 20) * 800} y'={((node.y + 10) / 20) * 400} stroke="#00ffcc" strokeWidth="3" />;
+                    return <line key={i} x1={((prev.x + 10) / 20) * 800} y1={((prev.y + 10) / 20) * 400} x2={((node.x + 10) / 20) * 800} y2={((node.y + 10) / 20) * 400} stroke="#3b82f6" strokeWidth="4" strokeLinecap="round" />;
                   })}
                 </g>
               ))}

@@ -134,6 +134,17 @@ export default function App() {
   const [gizmoMode, setGizmoMode] = useState('translate');
 
   useEffect(() => {
+    // 🤖 THE AUTO-SAVE ROBOT
+  // Every time you draw a room or add a prop, this waits 3 seconds and saves it to the cloud silently!
+  useEffect(() => {
+    if (currentProject.id && (rooms.length > 0 || sceneObjects.length > 0)) {
+      const saveTimer = setTimeout(() => {
+        socket.emit('save_project', { id: currentProject.id, name: currentProject.name, nodes: rooms, objects: sceneObjects });
+        // We don't spam the chat log here, it just happens invisibly like Google Docs!
+      }, 3000); 
+      return () => clearTimeout(saveTimer);
+    }
+  }, [rooms, sceneObjects, currentProject.id]);
     socket.emit('get_all_projects');
     socket.on('projects_list', (projects) => setSavedProjects(projects));
     socket.on('project_loaded', (projectData) => {
@@ -228,7 +239,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 📐 TAB 2: 2D PLAN */}
+      {/* 📐 TAB 2: 2D PLAN (Now with Approval Pipeline!) */}
       {activeTab === '2D' && (
         <div className="ui-overlay">
           <h2>Mansion Blueprint</h2>
@@ -252,7 +263,19 @@ export default function App() {
               {currentRoom.map((node, i) => <circle key={`dot-${i}`} cx={((node.x + 10) / 20) * 800} cy={((node.y + 10) / 20) * 400} r="4" fill="white" />)}
             </svg>
           </div>
-          <button className="build-btn" onClick={() => { setRooms([]); setCurrentRoom([]); }}>🗑️ Clear All Rooms</button>
+          
+          {/* 🚦 THE PIPELINE BUTTONS */}
+          <div style={{ display: 'flex', gap: '15px', marginTop: '15px' }}>
+            <button className="build-btn" style={{ background: '#222', color: 'white' }} onClick={() => { setRooms([]); setCurrentRoom([]); }}>🗑️ Clear</button>
+            
+            {/* The giant green APPROVAL button! */}
+            <button className="build-btn" style={{ background: '#00ffcc', color: '#000', flex: 1, fontSize: '16px', fontWeight: 'bold' }} onClick={() => {
+              setActiveTab('3D');
+              setChatLog(prev => [...prev, { sender: 'ai', text: 'Blueprint Approved! Generating 3D structure and waiting for prop instructions...' }]);
+            }}>
+              ✅ Approve Blueprint & Build 3D
+            </button>
+          </div>
         </div>
       )}
 

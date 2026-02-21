@@ -1,4 +1,3 @@
-import { Geometry, Base, Subtraction } from '@react-three/csg';
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, Environment, useGLTF, TransformControls } from '@react-three/drei';

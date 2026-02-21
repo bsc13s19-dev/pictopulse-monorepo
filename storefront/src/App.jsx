@@ -7,7 +7,7 @@ import './App.css';
 
 const socket = io('https://pictopulse-backend.onrender.com'); 
 
-// 🧮 MATH ROBOT
+// 🧮 MATH ROBOT (Calculates Square Footage)
 function calculateArea(rooms, currentRoom) {
   let totalArea = 0;
   const calc = (r) => {
@@ -24,7 +24,7 @@ function calculateArea(rooms, currentRoom) {
   return totalArea; 
 }
 
-// 🧱 WALL ROBOT
+// 🧱 WALL ROBOT (Builds the 3D Walls and Doors)
 function Wall({ start, end, wallIndex }) {
   const dx = end.x - start.x; const dz = end.y - start.y;
   const length = Math.sqrt(dx * dx + dz * dz);
@@ -50,6 +50,7 @@ function Wall({ start, end, wallIndex }) {
   );
 }
 
+// 🏠 CARDBOARD CUTOUT BUILDER (Floors and Roofs)
 function FloorAndRoof({ nodes }) {
   if (nodes.length < 3) return null;
   const shape = React.useMemo(() => {
@@ -65,13 +66,13 @@ function FloorAndRoof({ nodes }) {
   );
 }
 
-// 📦 DRACO UNZIPPER
+// 📦 DRACO UNZIPPER (Safely opens heavy 3D models)
 function UnzippedModel({ url }) {
   const { scene } = useGLTF(url, 'https://www.gstatic.com/draco/v1/decoders/');
   return <primitive object={scene.clone()} />;
 }
 
-// 🛋️ GIZMO PROPS BUILDER (NOW FIXED!)
+// 🛋️ GIZMO PROPS BUILDER (Allows moving, rotating, and scaling)
 function SceneItem({ data, isSelected, onSelect, gizmoMode, updateTransform }) {
   const meshRef = useRef(null); const [isReady, setIsReady] = useState(false);
   let content = data.type === 'model' ? <UnzippedModel url={data.url} /> : (
@@ -83,7 +84,6 @@ function SceneItem({ data, isSelected, onSelect, gizmoMode, updateTransform }) {
     </mesh>
   );
 
-  // 🐛 FIX: The Gizmo now properly updates the correct piece of furniture!
   const handleDragEnd = () => {
     if (meshRef.current) { 
       updateTransform(data.id, { 
@@ -108,15 +108,15 @@ function SceneItem({ data, isSelected, onSelect, gizmoMode, updateTransform }) {
   );
 }
 
-// 🎬 ANIMATION CAMERA ROBOT
+// 🎬 ANIMATION CAMERA ROBOT (Drone Fly-Through)
 function CinematicCamera({ isAnimating }) {
   useFrame(({ camera, clock }) => {
     if (isAnimating) {
-      const t = clock.getElapsedTime() * 0.2; // Speed of the drone
+      const t = clock.getElapsedTime() * 0.2; 
       camera.position.x = Math.sin(t) * 20;
       camera.position.z = Math.cos(t) * 20;
-      camera.position.y = 15 + Math.sin(t * 2) * 5; // Bob up and down
-      camera.lookAt(0, 0, 0); // Always look at the house
+      camera.position.y = 15 + Math.sin(t * 2) * 5; 
+      camera.lookAt(0, 0, 0); 
     }
   });
   return null;
@@ -132,7 +132,7 @@ export default function App() {
   const [savedProjects, setSavedProjects] = useState([]);
   const [currentProject, setCurrentProject] = useState({ id: null, name: "New Blueprint" });
   const [prompt, setPrompt] = useState("");
-  const [chatLog, setChatLog] = useState([{ sender: 'ai', text: 'Welcome to Pictopulse Pro V1. How can I assist your design today?' }]);
+  const [chatLog, setChatLog] = useState([{ sender: 'ai', text: 'Welcome to Pictopulse Pro. How can I assist your design today?' }]);
   
   const [rooms, setRooms] = useState([]); 
   const [currentRoom, setCurrentRoom] = useState([]); 
@@ -141,7 +141,7 @@ export default function App() {
   const [gizmoMode, setGizmoMode] = useState('translate');
 
   // 🌍 ENVIRONMENT STATE
-  const [envMode, setEnvMode] = useState('day'); // 'day', 'sunset', 'night'
+  const [envMode, setEnvMode] = useState('day'); 
   const [isAnimating, setIsAnimating] = useState(false);
 
   // 🐛 GIZMO FIX UPDATE FUNCTION
@@ -149,7 +149,7 @@ export default function App() {
     setSceneObjects(prev => prev.map(obj => obj.id === id ? { ...obj, ...newTransform } : obj));
   };
 
-  // 🤖 INVISIBLE AUTO-SAVE
+  // 🤖 INVISIBLE AUTO-SAVE (Google Docs style)
   useEffect(() => {
     if (currentUser && (rooms.length > 0 || sceneObjects.length > 0)) {
       const saveTimer = setTimeout(() => {
@@ -159,26 +159,49 @@ export default function App() {
     }
   }, [rooms, sceneObjects, currentProject.name, currentUser]);
 
+  // 🔌 THE WALKIE-TALKIE ROBOT (Socket Listeners)
   useEffect(() => {
     if (!currentUser) return;
+    
     socket.emit('get_all_projects');
     socket.on('projects_list', (projects) => setSavedProjects(projects));
+    
     socket.on('project_loaded', (projectData) => {
       setCurrentProject({ id: projectData._id, name: projectData.name });
       setRooms(projectData.nodes || []); setSceneObjects(projectData.objects || []);
     });
+    
     socket.on('cop_reply', (msg) => setChatLog(prev => [...prev, { sender: 'ai', text: msg }]));
+    
     socket.on('draw_3d_house', (data) => {
       const newObject = { ...data, id: Date.now(), x: data.x || 0, y: data.y || 1, z: data.z || 0 };
       setSceneObjects((prev) => [...prev, newObject]); setSelectedId(newObject.id); setActiveTab('3D');
     });
+
+    // 📡 THE SUPER ANTENNA! (Catches the Math from the Cake Slicer)
     socket.on('start_blueprint_pipeline', (data) => {
-      setCurrentProject(prev => ({ ...prev, name: data.projectName })); setActiveTab('2D');
+      setCurrentProject(prev => ({ ...prev, name: data.projectName })); 
+      
+      // ✨ THIS IS THE MAGIC! It catches the auto-generated math dots and sets the rooms!
+      if (data.autoNodes && data.autoNodes.length > 0) {
+        setRooms(data.autoNodes);
+      }
+      
+      setActiveTab('2D');
     });
-    return () => { socket.off('projects_list'); socket.off('project_loaded'); socket.off('cop_reply'); socket.off('draw_3d_house'); socket.off('start_blueprint_pipeline'); };
+
+    return () => { 
+      socket.off('projects_list'); socket.off('project_loaded'); socket.off('cop_reply'); 
+      socket.off('draw_3d_house'); socket.off('start_blueprint_pipeline'); 
+    };
   }, [currentUser]);
 
-  const handleBuild = () => { if (!prompt) return; setChatLog(prev => [...prev, { sender: 'user', text: prompt }]); socket.emit('build_house', prompt); setPrompt(""); };
+  const handleBuild = () => { 
+    if (!prompt) return; 
+    setChatLog(prev => [...prev, { sender: 'user', text: prompt }]); 
+    socket.emit('build_house', prompt); 
+    setPrompt(""); 
+  };
 
   const handle2DCanvasClick = (e) => {
     const rect = e.target.getBoundingClientRect();
@@ -211,7 +234,7 @@ export default function App() {
   return (
     <div className="studio-container">
       
-      {/* 🏷️ TOP BAR (APPLE/FIGMA STYLE) */}
+      {/* 🏷️ TOP BAR */}
       <div className="top-bar">
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
           <button className="toggle-btn" onClick={() => { setLeftOpen(!leftOpen); setRightOpen(false); }}>☰ Menu</button>
@@ -286,7 +309,7 @@ export default function App() {
       {activeTab === '2D' && (
         <div className="ui-overlay">
           <h2 style={{color: '#0f172a'}}>Drafting: {currentProject.name}</h2>
-          <p style={{ color: '#64748b', marginBottom: '30px' }}>Click to draw walls. Click the starting point to snap the room closed.</p>
+          <p style={{ color: '#64748b', marginBottom: '30px' }}>Click to draw walls, OR ask the AI to draw it for you!</p>
           <div className="blueprint-paper" onClick={handle2DCanvasClick} style={{ position: 'relative' }}>
             <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
               {rooms.map((room, roomIdx) => (
@@ -359,7 +382,6 @@ export default function App() {
                   })}
                 </group>
               ))}
-              {/* 🐛 GIZMO PROPS: Now connected to the real update function! */}
               {sceneObjects.map(obj => <SceneItem key={obj.id} data={obj} isSelected={selectedId === obj.id} onSelect={setSelectedId} gizmoMode={gizmoMode} updateTransform={handleUpdateTransform} />)}
             </Suspense>
           </Canvas>
@@ -419,7 +441,7 @@ export default function App() {
       {/* ⌨️ COMMAND BAR */}
       {(activeTab === 'Chat' || activeTab === '3D') && (
         <div className="floating-command">
-           <input className="magic-input" placeholder="Ask AI to build something (e.g., 'table', 'chair', 'blue box')..." value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleBuild()} />
+           <input className="magic-input" placeholder="Type: 'Build a 2BHK' or 'Build a red box'..." value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleBuild()} />
            <button className="build-btn" onClick={handleBuild}>✨ Send</button>
         </div>
       )}

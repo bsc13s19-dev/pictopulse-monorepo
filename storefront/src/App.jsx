@@ -23,64 +23,38 @@ function calculateArea(nodes) {
   return Math.abs(area / 2) * 15; 
 }
 
-// 🧱 THE MASTER LEGO WALL BUILDER (Doors + Glass Windows!)
-function Wall({ start, end, wallIndex }) {
-  const dx = end.x - start.x; const dz = end.y - start.y;
-  const length = Math.sqrt(dx * dx + dz * dz);
-  const angle = Math.atan2(dz, dx);
-  const midX = (start.x + end.x) / 2; const midZ = (start.y + end.y) / 2;
+// 🏠 THE GIANT CARDBOARD CUTOUT BUILDER (Floor & Roof!)
+function FloorAndRoof({ nodes }) {
+  // A floor needs at least 3 corners (a triangle) to exist!
+  if (nodes.length < 3) return null;
 
-  // 🚪 WALL #1: THE FRONT DOOR (If it's long enough)
-  if (wallIndex === 1 && length > 4) {
-    const doorWidth = 1.2;
-    const sideLength = (length - doorWidth) / 2; 
-    const sideOffset = (length / 2) - (sideLength / 2); 
+  // ✂️ The Robot traces the shape of your blueprint
+  const shape = React.useMemo(() => {
+    const s = new THREE.Shape();
+    s.moveTo(nodes[0].x, nodes[0].y);
+    for (let i = 1; i < nodes.length; i++) {
+      s.lineTo(nodes[i].x, nodes[i].y);
+    }
+    return s;
+  }, [nodes]);
 
-    return (
-      <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
-        <mesh position={[-sideOffset, 1.5, 0]} castShadow receiveShadow><boxGeometry args={[sideLength, 3, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
-        <mesh position={[sideOffset, 1.5, 0]} castShadow receiveShadow><boxGeometry args={[sideLength, 3, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
-        <mesh position={[0, 2.5, 0]} castShadow receiveShadow><boxGeometry args={[doorWidth, 1, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
-      </group>
-    );
-  }
-
-  // 🪟 WALL #2: THE GLASS WINDOW (The Donut Trick!)
-  if (wallIndex === 2 && length > 4) {
-    const winWidth = 1.5; // How wide the window is
-    const winHeight = 1;  // How tall the window is
-    const sillHeight = 1; // How far off the ground it is
-    const sideLength = (length - winWidth) / 2;
-    const sideOffset = (length / 2) - (sideLength / 2);
-
-    return (
-      <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
-        {/* 🧱 1. Left Concrete */}
-        <mesh position={[-sideOffset, 1.5, 0]} castShadow receiveShadow><boxGeometry args={[sideLength, 3, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
-        {/* 🧱 2. Right Concrete */}
-        <mesh position={[sideOffset, 1.5, 0]} castShadow receiveShadow><boxGeometry args={[sideLength, 3, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
-        {/* 🧱 3. Bottom Concrete (The Sill) */}
-        <mesh position={[0, sillHeight / 2, 0]} castShadow receiveShadow><boxGeometry args={[winWidth, sillHeight, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
-        {/* 🧱 4. Top Concrete */}
-        <mesh position={[0, 3 - (1 / 2), 0]} castShadow receiveShadow><boxGeometry args={[winWidth, 1, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
-        
-        {/* 🧊 5. THE MAGIC GLASS BLOCK! */}
-        <mesh position={[0, sillHeight + (winHeight / 2), 0]}>
-          {/* The glass is super thin (0.05) so it looks real! */}
-          <boxGeometry args={[winWidth, winHeight, 0.05]} />
-          {/* We turn ON 'transparent' and turn DOWN 'opacity' to make it see-through! */}
-          <meshStandardMaterial color="#88ccff" transparent={true} opacity={0.4} roughness={0.1} metalness={0.8} />
-        </mesh>
-      </group>
-    );
-  }
-
-  // 🧱 ALL OTHER WALLS: Just build a solid concrete block!
   return (
-    <mesh position={[midX, 1.5, midZ]} rotation={[0, -angle, 0]} castShadow receiveShadow>
-      <boxGeometry args={[length, 3, 0.2]} />
-      <meshStandardMaterial color="#eeeeee" roughness={0.8} />
-    </mesh>
+    <group>
+      {/* 🪵 THE WOODEN FLOOR */}
+      {/* We rotate it 90 degrees so it lies completely flat on the ground! */}
+      <mesh position={[0, 0.01, 0]} rotation={[Math.PI / 2, 0, 0]} receiveShadow>
+        <shapeGeometry args={[shape]} />
+        {/* We use DoubleSide so you can see the floor from the top and the bottom! */}
+        <meshStandardMaterial color="#8B5A2B" roughness={1} side={THREE.DoubleSide} />
+      </mesh>
+      
+      {/* ☂️ THE DARK GREY ROOF */}
+      {/* We lift this one exactly 3 units high so it sits on top of the walls! */}
+      <mesh position={[0, 3, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+        <shapeGeometry args={[shape]} />
+        <meshStandardMaterial color="#222222" roughness={0.9} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
   );
 }
 
@@ -322,18 +296,23 @@ export default function App() {
             <Grid infiniteGrid sectionColor="#00ffcc" cellColor="#111" fadeDistance={50} />
             <OrbitControls makeDefault minDistance={5} maxDistance={50} />
             
-            <Suspense fallback={null}>
-              {/* Render the Locked Concrete Walls with Name Tags! */}
-              {nodes2D.map((node, i) => {
-                if (i === 0) return null;
-                return <Wall key={`wall-${i}`} start={nodes2D[i-1]} end={node} wallIndex={i} />;
-              })}
-              
-              {/* Render the AI Props */}
-              {sceneObjects.map(obj => (
-                <SceneItem key={obj.id} data={obj} isSelected={selectedId === obj.id} onSelect={setSelectedId} gizmoMode={gizmoMode} updateTransform={updateObjectTransform} />
-              ))}
-            </Suspense>
+           <Suspense fallback={null}>
+            
+            {/* 🏠 1. The Floor and Roof */}
+            <FloorAndRoof nodes={nodes2D} />
+
+            {/* 🧱 2. The Walls (Door, Window, and Concrete) */}
+            {nodes2D.map((node, i) => {
+              if (i === 0) return null;
+              return <Wall key={`wall-${i}`} start={nodes2D[i-1]} end={node} wallIndex={i} />;
+            })}
+            
+            {/* 🛋️ 3. The 3D Props (Furniture and Magic AI Boxes) */}
+            {sceneObjects.map(obj => (
+              <SceneItem key={obj.id} data={obj} isSelected={selectedId === obj.id} onSelect={setSelectedId} gizmoMode={gizmoMode} updateTransform={updateObjectTransform} />
+            ))}
+
+          </Suspense>
           </Canvas>
         </div>
       )}

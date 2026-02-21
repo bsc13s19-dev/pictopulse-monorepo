@@ -1,3 +1,4 @@
+import { Geometry, Base, Subtraction } from '@react-three/csg';
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, Environment, useGLTF, TransformControls } from '@react-three/drei';
@@ -23,18 +24,33 @@ function calculateArea(nodes) {
   return Math.abs(area / 2) * 15; 
 }
 
-// 🧱 1. THE LOCKED 3D WALL BUILDER (Optimized Memory!)
+// 🧱 1. THE LOCKED 3D WALL BUILDER (Now with Doors!)
 function Wall({ start, end }) {
   const dx = end.x - start.x; const dz = end.y - start.y;
   const length = Math.sqrt(dx * dx + dz * dz);
   const angle = Math.atan2(dz, dx);
   const midX = (start.x + end.x) / 2; const midZ = (start.y + end.y) / 2;
 
-  // 🛡️ MEMORY SHIELD: This caches the math so the GPU doesn't recalculate it 60 times a second!
-  const geometry = React.useMemo(() => new THREE.BoxGeometry(length, 3, 0.2), [length]);
-
   return (
-    <mesh position={[midX, 1.5, midZ]} rotation={[0, -angle, 0]} geometry={geometry} castShadow receiveShadow>
+    <mesh position={[midX, 1.5, midZ]} rotation={[0, -angle, 0]} castShadow receiveShadow>
+      {/* 🪄 THE MAGIC COOKIE CUTTER ENGINE */}
+      <Geometry>
+        
+        {/* 1. THE DOUGH: Our solid concrete wall */}
+        <Base>
+          <boxGeometry args={[length, 3, 0.2]} />
+        </Base>
+        
+        {/* 2. THE CUTTER: We only punch a door if the wall is long enough! */}
+        {length > 4 && (
+          // We move the door down a little bit so it touches the floor (y: -0.5)
+          <Subtraction position={[0, -0.5, 0]}>
+            {/* The Door Shape: 1.2 wide, 2 tall, and thicker than the wall (0.5) so it punches all the way through! */}
+            <boxGeometry args={[1.2, 2, 0.5]} />
+          </Subtraction>
+        )}
+
+      </Geometry>
       <meshStandardMaterial color="#eeeeee" roughness={0.8} />
     </mesh>
   );

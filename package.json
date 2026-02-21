@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@react-three/csg": "^4.0.0",
     "mongodb": "^7.1.0",
     "mongoose": "^9.2.1"
   }

@@ -7,6 +7,22 @@ import './App.css';
 
 const socket = io('https://pictopulse-backend.onrender.com'); 
 
+// 🧮 THE SHOELACE MATH ROBOT (Calculates Square Footage!)
+function calculateArea(nodes) {
+  // A room needs at least 3 corners (a triangle) to have an area!
+  if (nodes.length < 3) return 0; 
+  
+  let area = 0;
+  for (let i = 0; i < nodes.length; i++) {
+    let j = (i + 1) % nodes.length; // This connects the last dot back to the first dot!
+    area += nodes[i].x * nodes[j].y;
+    area -= nodes[i].y * nodes[j].x;
+  }
+  
+  // We multiply by 15 so the numbers look like a real house size (Square Feet!)
+  return Math.abs(area / 2) * 15; 
+}
+
 // 🧱 1. THE LOCKED 3D WALL BUILDER (Optimized Memory!)
 function Wall({ start, end }) {
   const dx = end.x - start.x; const dz = end.y - start.y;

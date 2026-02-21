@@ -62,8 +62,6 @@ function Wall({ start, end, wallIndex }) {
       </group>
     );
   }
-  
-  // 🧱 Normal Wall (Fixed! No roof code here!)
   return (
     <mesh position={[midX, 1.5, midZ]} rotation={[0, -angle, 0]} castShadow receiveShadow>
       <boxGeometry args={[length, 3, 0.2]} />
@@ -94,20 +92,34 @@ function FloorAndRoof({ nodes }) {
   );
 }
 
+// 📦 THE TINY UNZIPPER ROBOT (Fixes the Magic Spell crash!)
+function UnzippedModel({ url }) {
+  const { scene } = useGLTF(url, 'https://www.gstatic.com/draco/v1/decoders/');
+  return <primitive object={scene.clone()} />;
+}
+
 // 🛋️ GIZMO PROPS BUILDER
 function SceneItem({ data, isSelected, onSelect, gizmoMode, updateTransform }) {
-  const meshRef = useRef(null); const [isReady, setIsReady] = useState(false);
+  const meshRef = useRef(null); 
+  const [isReady, setIsReady] = useState(false);
+  
   let content = null;
-  if (data.type === 'model') { const { scene } = useGLTF(data.url); content = <primitive object={scene.clone()} />; } 
-  else if (data.type === 'math') {
+  if (data.type === 'model') { 
+    // Uses the Unzipper Robot safely!
+    content = <UnzippedModel url={data.url} />; 
+  } else if (data.type === 'math') {
     const { shape, width, height, color } = data.params;
     content = (
       <mesh castShadow receiveShadow>
         {shape === 'box' && <boxGeometry args={[width, height, width]} />}
+        {shape === 'cylinder' && <cylinderGeometry args={[width / 2, width / 2, height, 32]} />}
+        {shape === 'sphere' && <sphereGeometry args={[width / 2, 32, 32]} />}
+        {shape === 'cone' && <coneGeometry args={[width / 2, height, 32]} />}
         <meshStandardMaterial color={color} emissive={isSelected ? "#ffffff" : "#000000"} emissiveIntensity={isSelected ? 0.3 : 0} />
       </mesh>
     );
   }
+
   const handleDragEnd = () => {
     if (meshRef.current) { updateTransform(data.id, { x: meshRef.current.position.x, y: meshRef.current.position.y, z: meshRef.current.position.z }); }
   };
@@ -133,18 +145,18 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [gizmoMode, setGizmoMode] = useState('translate');
 
-  useEffect(() => {
-    // 🤖 THE AUTO-SAVE ROBOT
-  // Every time you draw a room or add a prop, this waits 3 seconds and saves it to the cloud silently!
+  // 🤖 AUTO-SAVE ROBOT (Fixed: Now stands outside on its own!)
   useEffect(() => {
     if (currentProject.id && (rooms.length > 0 || sceneObjects.length > 0)) {
       const saveTimer = setTimeout(() => {
         socket.emit('save_project', { id: currentProject.id, name: currentProject.name, nodes: rooms, objects: sceneObjects });
-        // We don't spam the chat log here, it just happens invisibly like Google Docs!
       }, 3000); 
       return () => clearTimeout(saveTimer);
     }
   }, [rooms, sceneObjects, currentProject.id]);
+
+  // 🔌 SOCKET LISTENER ROBOT
+  useEffect(() => {
     socket.emit('get_all_projects');
     socket.on('projects_list', (projects) => setSavedProjects(projects));
     socket.on('project_loaded', (projectData) => {
@@ -198,7 +210,7 @@ export default function App() {
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}><button className="btn-massive" onClick={saveToCloud}>💾 Save</button><button className="toggle-btn" onClick={() => { setRightOpen(!rightOpen); setLeftOpen(false); }}>⚙️ Tools</button></div>
       </div>
 
-      {/* ⬅️ LEFT MENU RESTORED */}
+      {/* ⬅️ LEFT MENU */}
       <div className={`left-sidebar ${leftOpen ? 'open' : ''}`}>
         <div className="sidebar-section" style={{display: 'flex', justifyContent: 'space-between'}}><h4 className="sidebar-title">Cloud Projects</h4><button className="toggle-btn" onClick={() => setLeftOpen(false)}>✖</button></div>
         <div className="sidebar-section">
@@ -211,7 +223,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* ➡️ RIGHT TOOLS RESTORED */}
+      {/* ➡️ RIGHT TOOLS */}
       <div className={`right-sidebar ${rightOpen ? 'open' : ''}`}>
         <div className="sidebar-section" style={{display: 'flex', justifyContent: 'space-between'}}><h4 className="sidebar-title">Inspector</h4><button className="toggle-btn" onClick={() => setRightOpen(false)}>✖</button></div>
         <div className="sidebar-section">
@@ -228,7 +240,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* 💬 TAB 1: CHAT RESTORED */}
+      {/* 💬 TAB 1: CHAT */}
       {activeTab === 'Chat' && (
         <div className="ui-overlay">
           <div className="chat-container">
@@ -239,7 +251,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 📐 TAB 2: 2D PLAN (Now with Approval Pipeline!) */}
+      {/* 📐 TAB 2: 2D PLAN (With Approval Pipeline!) */}
       {activeTab === '2D' && (
         <div className="ui-overlay">
           <h2>Mansion Blueprint</h2>
@@ -264,11 +276,8 @@ export default function App() {
             </svg>
           </div>
           
-          {/* 🚦 THE PIPELINE BUTTONS */}
           <div style={{ display: 'flex', gap: '15px', marginTop: '15px' }}>
             <button className="build-btn" style={{ background: '#222', color: 'white' }} onClick={() => { setRooms([]); setCurrentRoom([]); }}>🗑️ Clear</button>
-            
-            {/* The giant green APPROVAL button! */}
             <button className="build-btn" style={{ background: '#00ffcc', color: '#000', flex: 1, fontSize: '16px', fontWeight: 'bold' }} onClick={() => {
               setActiveTab('3D');
               setChatLog(prev => [...prev, { sender: 'ai', text: 'Blueprint Approved! Generating 3D structure and waiting for prop instructions...' }]);
@@ -327,7 +336,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ⌨️ COMMAND BAR RESTORED */}
+      {/* ⌨️ COMMAND BAR */}
       {(activeTab === 'Chat' || activeTab === '3D') && (
         <div className="floating-command">
            <input className="magic-input" placeholder="Type a prompt to build props..." value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleBuild()} />

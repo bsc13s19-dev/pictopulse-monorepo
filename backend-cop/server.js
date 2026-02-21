@@ -1,217 +1,365 @@
-require('dotenv').config();
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const mongoose = require('mongoose');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+import React, { useState, useEffect, Suspense, useRef } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls, Grid, Environment, useGLTF, TransformControls } from '@react-three/drei';
+import * as THREE from 'three';
+import { io } from 'socket.io-client'; 
+import './App.css'; 
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, { 
-  cors: { origin: "*", methods: ["GET", "POST"], credentials: true },
-  transports: ['websocket', 'polling']
-});
+const socket = io('https://pictopulse-backend.onrender.com'); 
 
-// 💾 1. MONGODB SETUP & SCHEMA
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('🟢 MongoDB Cloud Connected!'))
-  .catch(err => console.error('🔴 MongoDB Connection Error:', err));
+// 🧮 THE MATH ROBOT
+function calculateArea(rooms, currentRoom) {
+  let totalArea = 0;
+  rooms.forEach(room => {
+    if (room.length < 3) return;
+    let area = 0;
+    for (let i = 0; i < room.length; i++) {
+      let j = (i + 1) % room.length; 
+      area += room[i].x * room[j].y;
+      area -= room[i].y * room[j].x;
+    }
+    totalArea += Math.abs(area / 2) * 15; 
+  });
+  if (currentRoom.length >= 3) {
+    let area = 0;
+    for (let i = 0; i < currentRoom.length; i++) {
+      let j = (i + 1) % currentRoom.length; 
+      area += currentRoom[i].x * currentRoom[j].y;
+      area -= currentRoom[i].y * currentRoom[j].x;
+    }
+    totalArea += Math.abs(area / 2) * 15;
+  }
+  return totalArea; 
+}
 
-// This is the blueprint for how a Project is saved in the database
-const projectSchema = new mongoose.Schema({
-  name: { type: String, default: 'Untitled Blueprint' },
-  nodes: { type: Array, default: [] },    // Saves the 2D wall coordinates
-  objects: { type: Array, default: [] },  // Saves 3D models and shapes
-  createdAt: { type: Date, default: Date.now }
-});
-const Project = mongoose.model('Project', projectSchema);
+// 🧱 THE WALL ROBOT
+function Wall({ start, end, wallIndex }) {
+  const dx = end.x - start.x; const dz = end.y - start.y;
+  const length = Math.sqrt(dx * dx + dz * dz);
+  if (length < 0.1) return null; 
+  const angle = Math.atan2(dz, dx);
+  const midX = (start.x + end.x) / 2; const midZ = (start.y + end.y) / 2;
 
-// 🌐 2. SETUP CLOUD LLM
-const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const brain = ai.getGenerativeModel({ 
-  model: "gemini-2.5-flash",
-  tools: [{ googleSearch: {} }] 
-});
+  if (wallIndex === 1 && length > 4) {
+    const doorWidth = 1.2; const sideLength = (length - doorWidth) / 2; const sideOffset = (length / 2) - (sideLength / 2); 
+    return (
+      <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
+        <mesh position={[-sideOffset, 1.5, 0]} castShadow receiveShadow><boxGeometry args={[sideLength, 3, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
+        <mesh position={[sideOffset, 1.5, 0]} castShadow receiveShadow><boxGeometry args={[sideLength, 3, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
+        <mesh position={[0, 2.5, 0]} castShadow receiveShadow><boxGeometry args={[doorWidth, 1, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
+      </group>
+    );
+  }
+  if (wallIndex === 2 && length > 4) {
+    const winWidth = 1.5; const winHeight = 1; const sillHeight = 1; const sideLength = (length - winWidth) / 2; const sideOffset = (length / 2) - (sideLength / 2);
+    return (
+      <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
+        <mesh position={[-sideOffset, 1.5, 0]} castShadow receiveShadow><boxGeometry args={[sideLength, 3, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
+        <mesh position={[sideOffset, 1.5, 0]} castShadow receiveShadow><boxGeometry args={[sideLength, 3, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
+        <mesh position={[0, sillHeight / 2, 0]} castShadow receiveShadow><boxGeometry args={[winWidth, sillHeight, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
+        <mesh position={[0, 3 - (1 / 2), 0]} castShadow receiveShadow><boxGeometry args={[winWidth, 1, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
+        <mesh position={[0, sillHeight + (winHeight / 2), 0]}><boxGeometry args={[winWidth, winHeight, 0.05]} /><meshStandardMaterial color="#88ccff" transparent={true} opacity={0.4} roughness={0.1} metalness={0.8} /></mesh>
+      </group>
+    );
+  }
+  return (
+    <mesh position={[midX, 1.5, midZ]} rotation={[0, -angle, 0]} castShadow receiveShadow>
+      <boxGeometry args={[length, 3, 0.2]} />
+      <meshStandardMaterial color="#eeeeee" roughness={0.8} />
+    </mesh>
+  );
+}
 
-// 🧮 3. THE TYPO FIXER MATH
-function fixTypo(userMessage, dictionary) {
-  const words = userMessage.toLowerCase().split(/[ ,]+/);
-  for (let userWord of words) {
-    if (userWord.length < 2) continue;
-    for (let safeWord in dictionary) {
-      if (userWord === safeWord) return dictionary[safeWord];
-      let matches = 0;
-      for (let char of userWord) { if (safeWord.includes(char)) matches++; }
-      let matchPercentage = matches / Math.max(userWord.length, safeWord.length);
-      if (matchPercentage >= 0.75 && Math.abs(userWord.length - safeWord.length) <= 2) {
-        console.log(`🤖 Typo Fixed: "${userWord}" ➔ "${safeWord}"`);
-        return dictionary[safeWord]; 
+// 🏠 CARDBOARD CUTOUT BUILDER
+function FloorAndRoof({ nodes }) {
+  if (nodes.length < 3) return null;
+  const shape = React.useMemo(() => {
+    const s = new THREE.Shape();
+    s.moveTo(nodes[0].x, nodes[0].y);
+    for (let i = 1; i < nodes.length; i++) {
+      if (nodes[i].x !== nodes[i-1].x || nodes[i].y !== nodes[i-1].y) {
+        s.lineTo(nodes[i].x, nodes[i].y);
       }
     }
-  }
-  return null; 
+    return s;
+  }, [nodes]);
+
+  return (
+    <group>
+      <mesh position={[0, 0.05, 0]} rotation={[Math.PI / 2, 0, 0]} receiveShadow><shapeGeometry args={[shape]} /><meshStandardMaterial color="#8B5A2B" roughness={1} side={THREE.DoubleSide} /></mesh>
+      <mesh position={[0, 3.05, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow><shapeGeometry args={[shape]} /><meshStandardMaterial color="#222222" roughness={0.9} side={THREE.DoubleSide} /></mesh>
+    </group>
+  );
 }
 
-// 🧠 4. THE LOCAL SUPER BRAIN
-function askSuperBrain(message) {
-  const msg = message.toLowerCase().trim();
-
-  // Greetings
-  const greetings = ["hi", "hello", "hey", "sup", "yo"];
-  for (let g of greetings) {
-    if (msg === g || msg.startsWith(g + " ")) {
-      return { mode: "CHAT", text: "Hello Boss! The MongoDB Vault is active. What are we building?" };
-    }
-  }
-
-  // Math Shapes
-  const knownShapes = { 'box':'box', 'cube':'box', 'sphere':'sphere', 'cylinder':'cylinder', 'cone':'cone', 'house':'house' };
-  const safeShape = fixTypo(msg, knownShapes);
-  if (safeShape) {
-    const knownColors = ['red', 'blue', 'green', 'yellow', 'black', 'white', 'grey'];
-    let foundColor = '#00ffcc';
-    for (let c of knownColors) { if (msg.includes(c)) { foundColor = c; break; } }
-    let size = 2;
-    const numberMatch = msg.match(/\d+/);
-    if (numberMatch) { size = parseInt(numberMatch[0]); if (size > 20) size = 20; }
-    return { mode: "GENERATE", mathParams: { shape: safeShape, width: size, height: size, color: foundColor } };
-  }
-
-  // 3D Models
-  const localModels = { "car": "car", "dog": "dog", "tree": "tree", "chair": "chair", "table": "table", "sofa": "sofa" };
-  const safeModel = fixTypo(msg, localModels);
-  if (safeModel) { return { mode: "SEARCH", searchKeyword: safeModel }; }
-
-  return null; 
+// 📦 THE TINY UNZIPPER ROBOT (DRACO is right here!)
+function UnzippedModel({ url }) {
+  const { scene } = useGLTF(url, 'https://www.gstatic.com/draco/v1/decoders/');
+  return <primitive object={scene.clone()} />;
 }
 
-// 🔌 5. THE DISPATCHER LOGIC
-io.on('connection', (socket) => {
-  console.log('👷 Master Builder connected!', socket.id);
-
-  // ==========================================
-  // 💾 DATABASE SOCKETS
-  // ==========================================
+// 🛋️ GIZMO PROPS BUILDER
+function SceneItem({ data, isSelected, onSelect, gizmoMode, updateTransform }) {
+  const meshRef = useRef(null); 
+  const [isReady, setIsReady] = useState(false);
   
-  // A. Fetch all projects to show in the Left Dock
-  socket.on('get_all_projects', async () => {
-    try {
-      const projects = await Project.find({}, 'name').sort({ createdAt: -1 });
-      socket.emit('projects_list', projects);
-    } catch (e) {
-      console.error("Fetch DB Error:", e);
-    }
-  });
+  let content = null;
+  if (data.type === 'model') { 
+    content = <UnzippedModel url={data.url} />; 
+  } else if (data.type === 'math') {
+    const { shape, width, height, color } = data.params;
+    content = (
+      <mesh castShadow receiveShadow>
+        {shape === 'box' && <boxGeometry args={[width, height, width]} />}
+        {shape === 'cylinder' && <cylinderGeometry args={[width / 2, width / 2, height, 32]} />}
+        {shape === 'sphere' && <sphereGeometry args={[width / 2, 32, 32]} />}
+        {shape === 'cone' && <coneGeometry args={[width / 2, height, 32]} />}
+        <meshStandardMaterial color={color} emissive={isSelected ? "#ffffff" : "#000000"} emissiveIntensity={isSelected ? 0.3 : 0} />
+      </mesh>
+    );
+  }
 
-  // B. Load a specific project when clicked
-  socket.on('load_project', async (projectId) => {
-    try {
-      const project = await Project.findById(projectId);
-      if (project) {
-        socket.emit('project_loaded', project);
-      }
-    } catch (e) {
-      socket.emit('cop_reply', 'Error loading project from Cloud.');
-    }
-  });
+  const handleDragEnd = () => {
+    if (meshRef.current) { updateTransform(data.id, { x: meshRef.current.position.x, y: meshRef.current.position.y, z: meshRef.current.position.z }); }
+  };
+  return (
+    <>
+      {isSelected && isReady && meshRef.current && <TransformControls object={meshRef.current} mode={gizmoMode} onMouseUp={handleDragEnd} />}
+      <group ref={(r) => { meshRef.current = r; if (r && !isReady) setIsReady(true); }} position={[data.x || 0, data.y || 0, data.z || 0]} onClick={(e) => { e.stopPropagation(); onSelect(data.id); }}>{content}</group>
+    </>
+  );
+}
 
-  // C. Save or Update a project
-  socket.on('save_project', async (data) => {
-    try {
-      let savedProject;
-      if (data.id) {
-        // Update existing
-        savedProject = await Project.findByIdAndUpdate(data.id, { name: data.name, nodes: data.nodes, objects: data.objects }, { new: true });
-      } else {
-        // Create new
-        savedProject = await Project.create({ name: data.name, nodes: data.nodes, objects: data.objects });
-      }
+export default function App() {
+  const [activeTab, setActiveTab] = useState('Chat'); 
+  const [leftOpen, setLeftOpen] = useState(false); const [rightOpen, setRightOpen] = useState(false);
+  const [savedProjects, setSavedProjects] = useState([]);
+  const [currentProject, setCurrentProject] = useState({ id: null, name: "New Blueprint" });
+  const [prompt, setPrompt] = useState("");
+  const [chatLog, setChatLog] = useState([{ sender: 'ai', text: 'Factory restored! Draco Unzipper Online. Invisible Cloud Save Active.' }]);
+  
+  const [rooms, setRooms] = useState([]); 
+  const [currentRoom, setCurrentRoom] = useState([]); 
+  const [sceneObjects, setSceneObjects] = useState([]); 
+  const [selectedId, setSelectedId] = useState(null);
+  const [gizmoMode, setGizmoMode] = useState('translate');
+
+  // 🤖 THE INVISIBLE CLOUD-SYNC ROBOT (Google Docs Style!)
+  // If you draw anything, it waits 2 seconds and saves it secretly!
+  useEffect(() => {
+    if (rooms.length > 0 || sceneObjects.length > 0) {
+      const saveTimer = setTimeout(() => {
+        socket.emit('save_project', { id: currentProject.id, name: currentProject.name, nodes: rooms, objects: sceneObjects });
+      }, 2000); 
+      return () => clearTimeout(saveTimer);
+    }
+  }, [rooms, sceneObjects, currentProject.name]);
+
+  // 🔌 SOCKET LISTENER ROBOT
+  useEffect(() => {
+    socket.emit('get_all_projects');
+    socket.on('projects_list', (projects) => setSavedProjects(projects));
+    
+    // When the server successfully saves, it sends the ID back here!
+    socket.on('project_loaded', (projectData) => {
+      setCurrentProject({ id: projectData._id, name: projectData.name });
+      setRooms(projectData.nodes || []); 
+      setSceneObjects(projectData.objects || []);
+      // We DO NOT force setActiveTab('2D') here anymore so it doesn't glitch when auto-saving!
+    });
+
+    socket.on('cop_reply', (msg) => setChatLog(prev => [...prev, { sender: 'ai', text: msg }]));
+    
+    socket.on('draw_3d_house', (data) => {
+      const newObject = { ...data, id: Date.now(), x: data.x || 0, y: data.y || 1, z: data.z || 0 };
+      setSceneObjects((prev) => [...prev, newObject]); setSelectedId(newObject.id); setActiveTab('3D');
+    });
+
+    // 📡 THE MISSING ANTENNA! 
+    // This catches the signal from the Backend to start drawing a Hospital!
+    socket.on('start_blueprint_pipeline', (data) => {
+      setCurrentProject(prev => ({ ...prev, name: data.projectName }));
+      setActiveTab('2D');
+    });
+
+    return () => { 
+      socket.off('projects_list'); socket.off('project_loaded'); socket.off('cop_reply'); 
+      socket.off('draw_3d_house'); socket.off('start_blueprint_pipeline'); 
+    };
+  }, []);
+
+  const handleBuild = () => { if (!prompt) return; setChatLog(prev => [...prev, { sender: 'user', text: prompt }]); socket.emit('build_house', prompt); setPrompt(""); };
+
+  const handle2DCanvasClick = (e) => {
+    const rect = e.target.getBoundingClientRect();
+    const clickX = ((e.clientX - rect.left) / rect.width) * 20 - 10;
+    const clickY = ((e.clientY - rect.top) / rect.height) * 20 - 10;
+
+    if (currentRoom.length > 2) {
+      const firstDot = currentRoom[0];
+      const distance = Math.sqrt(Math.pow(clickX - firstDot.x, 2) + Math.pow(clickY - firstDot.y, 2));
       
-      // Update the frontend with the official database ID
-      socket.emit('project_loaded', savedProject);
-      socket.emit('cop_reply', `✅ Successfully saved "${savedProject.name}" to MongoDB!`);
+      if (distance < 1.5) {
+        setRooms(prev => [...prev, [...currentRoom, { x: firstDot.x, y: firstDot.y }]]);
+        setCurrentRoom([]); 
+        return; 
+      }
+    }
+    setCurrentRoom(prev => [...prev, { x: clickX, y: clickY }]);
+  };
+
+  return (
+    <div className="studio-container">
       
-      // Refresh the list in the Left Dock for everyone
-      const projects = await Project.find({}, 'name').sort({ createdAt: -1 });
-      io.emit('projects_list', projects);
-    } catch (e) {
-      console.error("Save DB Error:", e);
-      socket.emit('cop_reply', '❌ Database Error: Could not save project.');
-    }
-  });
+      {/* 🏷️ TOP BAR (SAVE BUTTON HAS BEEN THROWN IN THE TRASH!) */}
+      <div className="top-bar">
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}><button className="toggle-btn" onClick={() => { setLeftOpen(!leftOpen); setRightOpen(false); }}>☰ Menu</button><strong style={{ color: '#00ffcc' }}>PICTOPULSE</strong></div>
+        <div className="tabs-container">
+          <button className={`tab-btn ${activeTab === 'Chat' ? 'active' : ''}`} onClick={() => setActiveTab('Chat')}>1. Chat</button>
+          <button className={`tab-btn ${activeTab === '2D' ? 'active' : ''}`} onClick={() => setActiveTab('2D')}>2. 2D Plan</button>
+          <button className={`tab-btn ${activeTab === '3D' ? 'active' : ''}`} onClick={() => setActiveTab('3D')}>3. 3D Model</button>
+          <button className={`tab-btn ${activeTab === 'Anim' ? 'active' : ''}`} onClick={() => setActiveTab('Anim')}>4. Animation</button>
+          <button className={`tab-btn ${activeTab === 'Pres' ? 'active' : ''}`} onClick={() => setActiveTab('Pres')}>5. Presentation</button>
+        </div>
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+          {/* Only the Tools button is here now. Magic saving is engaged! */}
+          <button className="toggle-btn" onClick={() => { setRightOpen(!rightOpen); setLeftOpen(false); }}>⚙️ Tools</button>
+        </div>
+      </div>
 
-  // ==========================================
-  // 🤖 AI BUILDER SOCKETS
-  // ==========================================
-  socket.on('build_house', async (theMessage) => {
-    try {
-      let decision = askSuperBrain(theMessage);
+      {/* ⬅️ LEFT MENU */}
+      <div className={`left-sidebar ${leftOpen ? 'open' : ''}`}>
+        <div className="sidebar-section" style={{display: 'flex', justifyContent: 'space-between'}}><h4 className="sidebar-title">Cloud Projects</h4><button className="toggle-btn" onClick={() => setLeftOpen(false)}>✖</button></div>
+        <div className="sidebar-section">
+          <button className="build-btn" style={{ width: '100%', marginBottom: '15px' }} onClick={() => { setRooms([]); setCurrentRoom([]); setSceneObjects([]); setCurrentProject({ id: null, name: "New Blueprint" }); setActiveTab('2D'); }}>+ New Blueprint</button>
+          <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+            {savedProjects.length === 0 ? <p style={{ fontSize: '12px', color: '#555' }}>No projects saved yet.</p> : savedProjects.map(proj => (
+                <p key={proj._id} onClick={() => { socket.emit('load_project', proj._id); setActiveTab('2D'); }} style={{ fontSize: '13px', color: '#00ffcc', cursor: 'pointer', borderBottom: '1px solid #222', paddingBottom: '5px' }}>📁 {proj.name}</p>
+            ))}
+          </div>
+        </div>
+      </div>
 
-      if (decision !== null) {
-        if (decision.mode === "CHAT") { socket.emit('cop_reply', decision.text); return; }
-        if (decision.mode === "GENERATE") {
-          socket.emit('cop_reply', `Local Math Engine building a ${decision.mathParams.shape}!`);
-          socket.emit('draw_3d_house', { type: 'math', params: decision.mathParams });
-          return; 
-        } 
-        if (decision.mode === "SEARCH") {
-          socket.emit('cop_reply', `Local Brain fetching 3D model of: ${decision.searchKeyword}...`);
-          try {
-            const response = await fetch(`https://poly.pizza/api/search?q=${decision.searchKeyword}`);
-            const textResponse = await response.text();
-            if (textResponse.trim().startsWith('<')) {
-              socket.emit('cop_reply', `3D Warehouse locked. Generating math box.`);
-              socket.emit('draw_3d_house', { type: 'math', params: { shape: 'box', width: 2, height: 2, color: '#00ffcc' } });
-              return;
-            }
-            const data = JSON.parse(textResponse);
-            if (data.results && data.results.length > 0) socket.emit('draw_3d_house', { type: 'model', url: data.results[0].url });
-          } catch (e) {
-            socket.emit('draw_3d_house', { type: 'math', params: { shape: 'box', width: 2, height: 2, color: '#333' } });
-          }
-          return; 
-        }
-      }
+      {/* ➡️ RIGHT TOOLS */}
+      <div className={`right-sidebar ${rightOpen ? 'open' : ''}`}>
+        <div className="sidebar-section" style={{display: 'flex', justifyContent: 'space-between'}}><h4 className="sidebar-title">Inspector</h4><button className="toggle-btn" onClick={() => setRightOpen(false)}>✖</button></div>
+        <div className="sidebar-section">
+          <label style={{ fontSize: '12px', color: '#aaa' }}>Project Name</label>
+          <input className="magic-input" style={{ width: '100%', padding: '5px', marginTop: '5px', fontSize: '14px', borderBottom: '1px solid #444' }} value={currentProject.name} onChange={(e) => setCurrentProject({...currentProject, name: e.target.value})} />
+        </div>
+        <div className="sidebar-section">
+          <h4 className="sidebar-title">Gizmo Tools (Props)</h4>
+          <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
+            <button className="toggle-btn" style={{ background: gizmoMode === 'translate' ? '#ff0055' : '#222', flex: 1 }} onClick={() => setGizmoMode('translate')}>Move</button>
+            <button className="toggle-btn" style={{ background: gizmoMode === 'rotate' ? '#ff0055' : '#222', flex: 1 }} onClick={() => setGizmoMode('rotate')}>Rotate</button>
+            <button className="toggle-btn" style={{ background: gizmoMode === 'scale' ? '#ff0055' : '#222', flex: 1 }} onClick={() => setGizmoMode('scale')}>Scale</button>
+          </div>
+        </div>
+      </div>
 
-      socket.emit('cop_reply', 'Routing complex request to Cloud AI...');
-      const prompt = `The user typed: "${theMessage}". 
-      If it's a casual conversation, set mode to "CHAT" with a friendly reply.
-      If they want to build something, decide if we should "SEARCH" a 3D warehouse or "GENERATE" a basic math shape.
-      Reply ONLY in raw JSON:
-      {"mode": "CHAT" or "SEARCH" or "GENERATE", "chatReply": "hello!", "searchKeyword": "single word", "mathParams": {"shape":"box", "width":2, "height":2, "color":"#ffffff"}}`;
+      {/* 💬 TAB 1: CHAT */}
+      {activeTab === 'Chat' && (
+        <div className="ui-overlay">
+          <div className="chat-container">
+            {chatLog.map((log, i) => (
+              <div key={i} className={`chat-bubble ${log.sender}`}>{log.sender === 'ai' ? '🏗️ : ' : '👤 : '} {log.text}</div>
+            ))}
+          </div>
+        </div>
+      )}
 
-      const result = await brain.generateContent(prompt);
-      let aiText = result.response.text();
-      let cleanText = aiText.replace(/```json/gi, '').replace(/```/gi, '').trim();
-      decision = JSON.parse(cleanText);
+      {/* 📐 TAB 2: 2D PLAN */}
+      {activeTab === '2D' && (
+        <div className="ui-overlay">
+          <h2>Mansion Blueprint: {currentProject.name}</h2>
+          <p style={{ color: '#aaa' }}>Draw a room, SNAP it closed. Then click somewhere else to start a new room!</p>
+          <div className="blueprint-paper" onClick={handle2DCanvasClick} style={{ position: 'relative' }}>
+            <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
+              {rooms.map((room, roomIdx) => (
+                <g key={`room-${roomIdx}`}>
+                  {room.map((node, i) => {
+                    if (i === 0) return null;
+                    const prev = room[i - 1];
+                    return <line key={i} x1={((prev.x + 10) / 20) * 800} y1={((prev.y + 10) / 20) * 400} x2={((node.x + 10) / 20) * 800} y'={((node.y + 10) / 20) * 400} stroke="#00ffcc" strokeWidth="3" />;
+                  })}
+                </g>
+              ))}
+              {currentRoom.map((node, i) => {
+                if (i === 0) return <circle key="start" cx={((node.x + 10) / 20) * 800} cy={((node.y + 10) / 20) * 400} r="6" fill="#ff0055" />;
+                const prev = currentRoom[i - 1];
+                return <line key={i} x1={((prev.x + 10) / 20) * 800} y1={((prev.y + 10) / 20) * 400} x2={((node.x + 10) / 20) * 800} y2={((node.y + 10) / 20) * 400} stroke="#ff0055" strokeWidth="3" strokeDasharray="5,5" />;
+              })}
+              {currentRoom.map((node, i) => <circle key={`dot-${i}`} cx={((node.x + 10) / 20) * 800} cy={((node.y + 10) / 20) * 400} r="4" fill="white" />)}
+            </svg>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '15px', marginTop: '15px' }}>
+            <button className="build-btn" style={{ background: '#222', color: 'white' }} onClick={() => { setRooms([]); setCurrentRoom([]); }}>🗑️ Clear</button>
+            <button className="build-btn" style={{ background: '#00ffcc', color: '#000', flex: 1, fontSize: '16px', fontWeight: 'bold' }} onClick={() => {
+              setActiveTab('3D');
+              setChatLog(prev => [...prev, { sender: 'ai', text: 'Blueprint Approved! Generating 3D structure and waiting for prop instructions...' }]);
+            }}>
+              ✅ Approve Blueprint & Build 3D
+            </button>
+          </div>
+        </div>
+      )}
 
-      if (decision.mode === "CHAT") { socket.emit('cop_reply', decision.chatReply); } 
-      else if (decision.mode === "SEARCH") {
-        socket.emit('cop_reply', `Cloud AI fetching 3D model: ${decision.searchKeyword}...`);
-        try {
-          const response = await fetch(`https://poly.pizza/api/search?q=${decision.searchKeyword}`);
-          const textResponse = await response.text();
-          if (textResponse.trim().startsWith('<')) {
-             socket.emit('cop_reply', `Warehouse locked. Gemini building a math fallback.`);
-             socket.emit('draw_3d_house', { type: 'math', params: decision.mathParams });
-             return;
-          }
-          const data = JSON.parse(textResponse);
-          if (data.results && data.results.length > 0) socket.emit('draw_3d_house', { type: 'model', url: data.results[0].url });
-        } catch (e) {
-            socket.emit('draw_3d_house', { type: 'math', params: decision.mathParams });
-        }
-      } else {
-        socket.emit('draw_3d_house', { type: 'math', params: decision.mathParams });
-      }
+      {/* 🎮 TAB 3: 3D MODEL */}
+      {activeTab === '3D' && (
+        <div style={{ position: 'absolute', top: '0', left: 0, right: 0, bottom: 0, zIndex: 1 }}>
+          <Canvas shadows="basic" camera={{ position: [15, 15, 15], fov: 40 }} onPointerMissed={() => setSelectedId(null)}>
+            <ambientLight intensity={0.5} /><spotLight position={[10, 20, 10]} angle={0.3} penumbra={1} intensity={2} castShadow />
+            <Environment preset="city" background blur={0.5} /><OrbitControls makeDefault minDistance={5} maxDistance={50} />
+            <Suspense fallback={null}>
+              {rooms.map((room, roomIdx) => (
+                <group key={`build-${roomIdx}`}>
+                  <FloorAndRoof nodes={room} />
+                  {room.map((node, i) => {
+                    if (i === 0) return null;
+                    return <Wall key={`wall-${i}`} start={room[i-1]} end={node} wallIndex={i} />;
+                  })}
+                </group>
+              ))}
+              {sceneObjects.map(obj => <SceneItem key={obj.id} data={obj} isSelected={selectedId === obj.id} onSelect={setSelectedId} gizmoMode={gizmoMode} updateTransform={sceneObjects} />)}
+            </Suspense>
+          </Canvas>
+        </div>
+      )}
 
-    } catch (error) {
-      console.error("System Error:", error);
-      socket.emit('cop_reply', 'Brain freeze! Even the Cloud AI needs a second.');
-    }
-  });
-});
+      {/* 🎬 TAB 4: ANIMATION */}
+      {activeTab === 'Anim' && (
+        <div className="ui-overlay">
+          <h2>Director's Timeline</h2>
+          <p style={{ color: '#888' }}>Set up cinematic camera tracking paths.</p>
+          <div style={{ width: '80%', height: '100px', background: '#222', margin: '20px auto', borderRadius: '8px', border: '1px solid #444', display: 'flex', alignItems: 'center', padding: '10px' }}>
+             <div style={{ width: '20%', background: '#00ffcc', height: '10px', borderRadius: '5px' }}></div>
+             <span style={{ marginLeft: '10px', fontSize: '12px', color: '#aaa' }}>Camera Path A (Kitchen Walkthrough)</span>
+          </div>
+        </div>
+      )}
+      
+      {/* 📊 TAB 5: PRESENTATION */}
+      {activeTab === 'Pres' && (
+        <div className="ui-overlay">
+          <div className="active-slide" style={{ width: '800px', background: 'white', padding: '40px', color: 'black' }}>
+             <h2>Project Proposal</h2>
+             <div style={{ marginTop: '20px', padding: '15px', background: '#f9f9f9', borderRadius: '8px' }}>
+                <strong>📊 Live Multi-Room Data:</strong><br/><br/>
+                * Total Rooms Built: {rooms.length}<br/>
+                * 📏 Estimated Mansion Area: <strong style={{color: '#ff0055'}}>{Math.round(calculateArea(rooms, currentRoom))} Sq Ft</strong>
+             </div>
+          </div>
+        </div>
+      )}
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🚓 Cop active on Port ${PORT}`));
+      {/* ⌨️ COMMAND BAR */}
+      {(activeTab === 'Chat' || activeTab === '3D') && (
+        <div className="floating-command">
+           <input className="magic-input" placeholder="Type a prompt to build props..." value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleBuild()} />
+           <button className="build-btn" onClick={handleBuild}>Send</button>
+        </div>
+      )}
+    </div>
+  );
+}

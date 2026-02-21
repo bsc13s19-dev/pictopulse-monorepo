@@ -7,39 +7,47 @@ import './App.css';
 
 const socket = io('https://pictopulse-backend.onrender.com'); 
 
-// 🧮 THE SHOELACE MATH ROBOT (Calculates Square Footage!)
-function calculateArea(nodes) {
-  // A room needs at least 3 corners (a triangle) to have an area!
-  if (nodes.length < 3) return 0; 
+// 🧮 THE MATH ROBOT: Now calculates the area of ALL rooms combined!
+function calculateArea(rooms, currentRoom) {
+  let totalArea = 0;
   
-  let area = 0;
-  for (let i = 0; i < nodes.length; i++) {
-    let j = (i + 1) % nodes.length; // This connects the last dot back to the first dot!
-    area += nodes[i].x * nodes[j].y;
-    area -= nodes[i].y * nodes[j].x;
+  // Calculate finished rooms
+  rooms.forEach(room => {
+    if (room.length < 3) return;
+    let area = 0;
+    for (let i = 0; i < room.length; i++) {
+      let j = (i + 1) % room.length; 
+      area += room[i].x * room[j].y;
+      area -= room[i].y * room[j].x;
+    }
+    totalArea += Math.abs(area / 2) * 15; 
+  });
+
+  // Calculate the room you are currently drawing
+  if (currentRoom.length >= 3) {
+    let area = 0;
+    for (let i = 0; i < currentRoom.length; i++) {
+      let j = (i + 1) % currentRoom.length; 
+      area += currentRoom[i].x * currentRoom[j].y;
+      area -= currentRoom[i].y * currentRoom[j].x;
+    }
+    totalArea += Math.abs(area / 2) * 15;
   }
   
-  // We multiply by 15 so the numbers look like a real house size (Square Feet!)
-  return Math.abs(area / 2) * 15; 
+  return totalArea; 
 }
 
-// 🧱 THE MASTER LEGO WALL BUILDER (Doors, Windows, and Shields!)
+// 🧱 THE LEGO WALL BUILDER 
 function Wall({ start, end, wallIndex }) {
   const dx = end.x - start.x; const dz = end.y - start.y;
   const length = Math.sqrt(dx * dx + dz * dz);
-  
-  // 🛡️ THE ZERO-INCH SHIELD
-  if (length < 0.1) return null; 
-
+  if (length < 0.1) return null; // 🛡️ Zero-Inch Shield
   const angle = Math.atan2(dz, dx);
   const midX = (start.x + end.x) / 2; const midZ = (start.y + end.y) / 2;
 
-  // 🚪 WALL #1: THE FRONT DOOR
+  // 🚪 Wall 1: Door
   if (wallIndex === 1 && length > 4) {
-    const doorWidth = 1.2;
-    const sideLength = (length - doorWidth) / 2; 
-    const sideOffset = (length / 2) - (sideLength / 2); 
-
+    const doorWidth = 1.2; const sideLength = (length - doorWidth) / 2; const sideOffset = (length / 2) - (sideLength / 2); 
     return (
       <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
         <mesh position={[-sideOffset, 1.5, 0]} castShadow receiveShadow><boxGeometry args={[sideLength, 3, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
@@ -48,33 +56,20 @@ function Wall({ start, end, wallIndex }) {
       </group>
     );
   }
-
-  // 🪟 WALL #2: THE GLASS WINDOW 
+  // 🪟 Wall 2: Window
   if (wallIndex === 2 && length > 4) {
-    const winWidth = 1.5; 
-    const winHeight = 1;  
-    const sillHeight = 1; 
-    const sideLength = (length - winWidth) / 2;
-    const sideOffset = (length / 2) - (sideLength / 2);
-
+    const winWidth = 1.5; const winHeight = 1; const sillHeight = 1; const sideLength = (length - winWidth) / 2; const sideOffset = (length / 2) - (sideLength / 2);
     return (
       <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
-        {/* Left & Right Concrete */}
         <mesh position={[-sideOffset, 1.5, 0]} castShadow receiveShadow><boxGeometry args={[sideLength, 3, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
         <mesh position={[sideOffset, 1.5, 0]} castShadow receiveShadow><boxGeometry args={[sideLength, 3, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
-        {/* Top & Bottom Concrete */}
         <mesh position={[0, sillHeight / 2, 0]} castShadow receiveShadow><boxGeometry args={[winWidth, sillHeight, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
         <mesh position={[0, 3 - (1 / 2), 0]} castShadow receiveShadow><boxGeometry args={[winWidth, 1, 0.2]} /><meshStandardMaterial color="#eeeeee" roughness={0.8} /></mesh>
-        {/* The Magic Glass! */}
-        <mesh position={[0, sillHeight + (winHeight / 2), 0]}>
-          <boxGeometry args={[winWidth, winHeight, 0.05]} />
-          <meshStandardMaterial color="#88ccff" transparent={true} opacity={0.4} roughness={0.1} metalness={0.8} />
-        </mesh>
+        <mesh position={[0, sillHeight + (winHeight / 2), 0]}><boxGeometry args={[winWidth, winHeight, 0.05]} /><meshStandardMaterial color="#88ccff" transparent={true} opacity={0.4} roughness={0.1} metalness={0.8} /></mesh>
       </group>
     );
   }
-
-  // 🧱 ALL OTHER WALLS: Solid Concrete!
+  // 🧱 Normal Wall
   return (
     <mesh position={[midX, 1.5, midZ]} rotation={[0, -angle, 0]} castShadow receiveShadow>
       <boxGeometry args={[length, 3, 0.2]} />
@@ -83,368 +78,192 @@ function Wall({ start, end, wallIndex }) {
   );
 }
 
-// 🏠 THE GIANT CARDBOARD CUTOUT BUILDER (Floor & Roof!)
+// 🏠 CARDBOARD CUTOUT BUILDER
 function FloorAndRoof({ nodes }) {
-  // A floor needs at least 3 corners (a triangle) to exist!
   if (nodes.length < 3) return null;
-
-  // ✂️ The Robot traces the shape of your blueprint
   const shape = React.useMemo(() => {
     const s = new THREE.Shape();
     s.moveTo(nodes[0].x, nodes[0].y);
     for (let i = 1; i < nodes.length; i++) {
-      s.lineTo(nodes[i].x, nodes[i].y);
+      if (nodes[i].x !== nodes[i-1].x || nodes[i].y !== nodes[i-1].y) {
+        s.lineTo(nodes[i].x, nodes[i].y);
+      }
     }
     return s;
   }, [nodes]);
 
   return (
     <group>
-      {/* 🪵 THE WOODEN FLOOR */}
-      {/* We rotate it 90 degrees so it lies completely flat on the ground! */}
-      <mesh position={[0, 0.01, 0]} rotation={[Math.PI / 2, 0, 0]} receiveShadow>
-        <shapeGeometry args={[shape]} />
-        {/* We use DoubleSide so you can see the floor from the top and the bottom! */}
-        <meshStandardMaterial color="#8B5A2B" roughness={1} side={THREE.DoubleSide} />
-      </mesh>
-      
-      {/* ☂️ THE DARK GREY ROOF */}
-      {/* We lift this one exactly 3 units high so it sits on top of the walls! */}
-      <mesh position={[0, 3, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
-        <shapeGeometry args={[shape]} />
-        <meshStandardMaterial color="#222222" roughness={0.9} side={THREE.DoubleSide} />
-      </mesh>
+      <mesh position={[0, 0.01, 0]} rotation={[Math.PI / 2, 0, 0]} receiveShadow><shapeGeometry args={[shape]} /><meshStandardMaterial color="#8B5A2B" roughness={1} side={THREE.DoubleSide} /></mesh>
+      <mesh position={[0, 3, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow><shapeGeometry args={[shape]} /><meshStandardMaterial color="#222222" roughness={0.9} side={THREE.DoubleSide} /></mesh>
     </group>
   );
 }
 
-// 🛋️ 2. THE PROPS BUILDER (Uses the Gizmo)
+// 🛋️ GIZMO PROPS BUILDER
 function SceneItem({ data, isSelected, onSelect, gizmoMode, updateTransform }) {
-  const meshRef = useRef(null);
-  const [isReady, setIsReady] = useState(false);
-
+  const meshRef = useRef(null); const [isReady, setIsReady] = useState(false);
   let content = null;
-  if (data.type === 'model') {
-    const { scene } = useGLTF(data.url);
-    content = <primitive object={scene.clone()} />;
-  } else if (data.type === 'math') {
+  if (data.type === 'model') { const { scene } = useGLTF(data.url); content = <primitive object={scene.clone()} />; } 
+  else if (data.type === 'math') {
     const { shape, width, height, color } = data.params;
     content = (
       <mesh castShadow receiveShadow>
-        {shape === 'sphere' && <sphereGeometry args={[width / 2, 32, 32]} />}
         {shape === 'box' && <boxGeometry args={[width, height, width]} />}
-        {shape === 'cylinder' && <cylinderGeometry args={[width / 2, width / 2, height, 32]} />}
-        {shape === 'cone' && <coneGeometry args={[width / 2, height, 32]} />}
         <meshStandardMaterial color={color} emissive={isSelected ? "#ffffff" : "#000000"} emissiveIntensity={isSelected ? 0.3 : 0} />
       </mesh>
     );
   }
-
   const handleDragEnd = () => {
     if (meshRef.current) {
-      updateTransform(data.id, {
-        x: meshRef.current.position.x, y: meshRef.current.position.y, z: meshRef.current.position.z,
-        rotX: meshRef.current.rotation.x, rotY: meshRef.current.rotation.y, rotZ: meshRef.current.rotation.z,
-        sX: meshRef.current.scale.x, sY: meshRef.current.scale.y, sZ: meshRef.current.scale.z
-      });
+      updateTransform(data.id, { x: meshRef.current.position.x, y: meshRef.current.position.y, z: meshRef.current.position.z });
     }
   };
-
   return (
     <>
-      {isSelected && isReady && meshRef.current && (
-        <TransformControls object={meshRef.current} mode={gizmoMode} onMouseUp={handleDragEnd} />
-      )}
-      <group 
-        ref={(r) => { meshRef.current = r; if (r && !isReady) setIsReady(true); }}
-        position={[data.x || 0, data.y || 0, data.z || 0]} 
-        rotation={[data.rotX || 0, data.rotY || 0, data.rotZ || 0]} 
-        scale={[data.sX || 1, data.sY || 1, data.sZ || 1]}
-        onClick={(e) => { e.stopPropagation(); onSelect(data.id); }}
-      >
+      {isSelected && isReady && meshRef.current && <TransformControls object={meshRef.current} mode={gizmoMode} onMouseUp={handleDragEnd} />}
+      <group ref={(r) => { meshRef.current = r; if (r && !isReady) setIsReady(true); }} position={[data.x || 0, data.y || 0, data.z || 0]} onClick={(e) => { e.stopPropagation(); onSelect(data.id); }}>
         {content}
       </group>
     </>
   );
 }
 
-// 🌍 MAIN APP PIPELINE
 export default function App() {
   const [activeTab, setActiveTab] = useState('Chat'); 
-  const [leftOpen, setLeftOpen] = useState(false);
-  const [rightOpen, setRightOpen] = useState(false);
-  
+  const [leftOpen, setLeftOpen] = useState(false); const [rightOpen, setRightOpen] = useState(false);
   const [savedProjects, setSavedProjects] = useState([]);
   const [currentProject, setCurrentProject] = useState({ id: null, name: "New Blueprint" });
-  
   const [prompt, setPrompt] = useState("");
-  const [chatLog, setChatLog] = useState([{ sender: 'ai', text: 'Pictopulse Gold Master Ready. Chat, draw 2D walls, build 3D props, and save to MongoDB.' }]);
-  const [nodes2D, setNodes2D] = useState([]); 
+  const [chatLog, setChatLog] = useState([{ sender: 'ai', text: 'Multi-Room Mansion Engine Ready!' }]);
+  
+  // 📚 THE NEW MULTI-ROOM SKETCHBOOK!
+  const [rooms, setRooms] = useState([]); // Stores all finished rooms
+  const [currentRoom, setCurrentRoom] = useState([]); // The room you are drawing right now
+  
   const [sceneObjects, setSceneObjects] = useState([]); 
-
   const [selectedId, setSelectedId] = useState(null);
   const [gizmoMode, setGizmoMode] = useState('translate');
 
-  // 🔌 SOCKET & DB LOGIC
   useEffect(() => {
     socket.emit('get_all_projects');
     socket.on('projects_list', (projects) => setSavedProjects(projects));
     socket.on('project_loaded', (projectData) => {
       setCurrentProject({ id: projectData._id, name: projectData.name });
-      setNodes2D(projectData.nodes || []);
+      setRooms(projectData.nodes || []); // Loading old single-room saves might look funny, but new ones will work perfectly!
       setSceneObjects(projectData.objects || []);
-      setChatLog([{ sender: 'ai', text: `Loaded project: ${projectData.name}` }]);
       setActiveTab('2D');
     });
     socket.on('cop_reply', (msg) => setChatLog(prev => [...prev, { sender: 'ai', text: msg }]));
     socket.on('draw_3d_house', (data) => {
-      const initialY = data.type === 'math' ? (data.params.height || 2) / 2 : 0;
-      const newObject = { ...data, id: Date.now(), x: data.x || 0, y: data.y || initialY, z: data.z || 0 };
-      setSceneObjects((prev) => [...prev, newObject]);
-      setSelectedId(newObject.id); 
-      setActiveTab('3D');
+      const newObject = { ...data, id: Date.now(), x: data.x || 0, y: data.y || 1, z: data.z || 0 };
+      setSceneObjects((prev) => [...prev, newObject]); setSelectedId(newObject.id); setActiveTab('3D');
     });
     return () => { socket.off('projects_list'); socket.off('project_loaded'); socket.off('cop_reply'); socket.off('draw_3d_house'); };
   }, []);
 
-  // ⌨️ SHORTCUTS
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'DIV' && e.target.isContentEditable) return; 
-      if (e.key === 'Delete' || e.key === 'Backspace') setSceneObjects(prev => prev.filter(obj => obj.id !== selectedId));
-      if (e.key === 'm' || e.key === 'M') setGizmoMode('translate');
-      if (e.key === 'r' || e.key === 'R') setGizmoMode('rotate');
-      if (e.key === 's' || e.key === 'S') setGizmoMode('scale');
-      if (e.key === 'Escape') setSelectedId(null);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId]);
+  const saveToCloud = () => { socket.emit('save_project', { id: currentProject.id, name: currentProject.name, nodes: rooms, objects: sceneObjects }); };
+  const handleBuild = () => { if (!prompt) return; socket.emit('build_house', prompt); setPrompt(""); };
 
-  const saveToCloud = () => {
-    socket.emit('save_project', { id: currentProject.id, name: currentProject.name, nodes: nodes2D, objects: sceneObjects });
-    setChatLog(prev => [...prev, { sender: 'ai', text: `Saving ${currentProject.name} to MongoDB...` }]);
-  };
-
-  const handleBuild = () => { 
-    if (!prompt) return;
-    setChatLog(prev => [...prev, { sender: 'user', text: prompt }]);
-    socket.emit('build_house', prompt);
-    setPrompt("");
-  };
-
-  // 📐 2D DRAFTING LOGIC (Now with Super Magnets!)
+  // 📐 2D DRAFTING: THE "LIFT PENCIL" UPGRADE
   const handle2DCanvasClick = (e) => {
     const rect = e.target.getBoundingClientRect();
     const clickX = ((e.clientX - rect.left) / rect.width) * 20 - 10;
     const clickY = ((e.clientY - rect.top) / rect.height) * 20 - 10;
 
-    // 🧲 THE MAGNETIC SNAP: Are we trying to close the square?
-    if (nodes2D.length > 2) {
-      const firstDot = nodes2D[0];
-      // Math to check how close your mouse is to the first dot
+    if (currentRoom.length > 2) {
+      const firstDot = currentRoom[0];
       const distance = Math.sqrt(Math.pow(clickX - firstDot.x, 2) + Math.pow(clickY - firstDot.y, 2));
       
-      // If you click close to the start, SNAP it perfectly closed!
       if (distance < 1.5) {
-        setNodes2D(prev => [...prev, { x: firstDot.x, y: firstDot.y }]);
-        return; // Stop here, don't use the messy mouse click!
+        // 🧲 SNAP! Close the room, add it to the finished sketchbook, and LIFT THE PENCIL!
+        setRooms(prev => [...prev, [...currentRoom, { x: firstDot.x, y: firstDot.y }]]);
+        setCurrentRoom([]); 
+        return; 
       }
     }
-
-    // Otherwise, just draw a normal dot
-    setNodes2D(prev => [...prev, { x: clickX, y: clickY }]);
+    // Still drawing the current room...
+    setCurrentRoom(prev => [...prev, { x: clickX, y: clickY }]);
   };
 
   return (
     <div className="studio-container">
-      {/* 🏷️ TOP BAR */}
       <div className="top-bar">
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          <button className="toggle-btn" onClick={() => { setLeftOpen(!leftOpen); setRightOpen(false); }}>☰ Menu</button>
-          <strong style={{ fontSize: '18px', letterSpacing: '2px', color: '#00ffcc' }}>PICTOPULSE</strong>
-        </div>
-        
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}><button className="toggle-btn" onClick={() => { setLeftOpen(!leftOpen); setRightOpen(false); }}>☰ Menu</button><strong style={{ color: '#00ffcc' }}>PICTOPULSE</strong></div>
         <div className="tabs-container">
           <button className={`tab-btn ${activeTab === 'Chat' ? 'active' : ''}`} onClick={() => setActiveTab('Chat')}>1. Chat</button>
           <button className={`tab-btn ${activeTab === '2D' ? 'active' : ''}`} onClick={() => setActiveTab('2D')}>2. 2D Plan</button>
           <button className={`tab-btn ${activeTab === '3D' ? 'active' : ''}`} onClick={() => setActiveTab('3D')}>3. 3D Model</button>
-          <button className={`tab-btn ${activeTab === 'Anim' ? 'active' : ''}`} onClick={() => setActiveTab('Anim')}>4. Animation</button>
           <button className={`tab-btn ${activeTab === 'Pres' ? 'active' : ''}`} onClick={() => setActiveTab('Pres')}>5. Presentation</button>
         </div>
-
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          <button className="btn-massive" onClick={saveToCloud}>💾 Save</button>
-          <button className="toggle-btn" onClick={() => { setRightOpen(!rightOpen); setLeftOpen(false); }}>⚙️ Tools</button>
-        </div>
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}><button className="btn-massive" onClick={saveToCloud}>💾 Save</button></div>
       </div>
 
-      {/* ⬅️ LEFT DOCK (Fixed CSS classes!) */}
-      <div className={`left-sidebar ${leftOpen ? 'open' : ''}`}>
-        <div className="sidebar-section" style={{display: 'flex', justifyContent: 'space-between'}}>
-            <h4 className="sidebar-title">Cloud Projects</h4>
-            <button className="toggle-btn" onClick={() => setLeftOpen(false)}>✖</button>
-        </div>
-        <div className="sidebar-section">
-          <button className="build-btn" style={{ width: '100%', marginBottom: '15px' }} onClick={() => { setNodes2D([]); setSceneObjects([]); setCurrentProject({ id: null, name: "New Blueprint" }); setActiveTab('2D'); }}>+ New Blueprint</button>
-          <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-            {savedProjects.length === 0 ? <p style={{ fontSize: '12px', color: '#555' }}>No projects saved yet.</p> : savedProjects.map(proj => (
-                <p key={proj._id} onClick={() => socket.emit('load_project', proj._id)} style={{ fontSize: '13px', color: '#00ffcc', cursor: 'pointer', borderBottom: '1px solid #222', paddingBottom: '5px' }}>📁 {proj.name}</p>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ➡️ RIGHT DOCK (Fixed CSS classes!) */}
-      <div className={`right-sidebar ${rightOpen ? 'open' : ''}`}>
-        <div className="sidebar-section" style={{display: 'flex', justifyContent: 'space-between'}}>
-            <h4 className="sidebar-title">Inspector</h4>
-            <button className="toggle-btn" onClick={() => setRightOpen(false)}>✖</button>
-        </div>
-        <div className="sidebar-section">
-          <label style={{ fontSize: '12px', color: '#aaa' }}>Project Name</label>
-          <input className="magic-input" style={{ width: '100%', padding: '5px', marginTop: '5px', fontSize: '14px', borderBottom: '1px solid #444' }} value={currentProject.name} onChange={(e) => setCurrentProject({...currentProject, name: e.target.value})} />
-        </div>
-        
-        <div className="sidebar-section">
-          <h4 className="sidebar-title">Gizmo Tools (Props)</h4>
-          <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
-            <button className="toggle-btn" style={{ background: gizmoMode === 'translate' ? '#ff0055' : '#222', flex: 1 }} onClick={() => setGizmoMode('translate')}>Move</button>
-            <button className="toggle-btn" style={{ background: gizmoMode === 'rotate' ? '#ff0055' : '#222', flex: 1 }} onClick={() => setGizmoMode('rotate')}>Rotate</button>
-            <button className="toggle-btn" style={{ background: gizmoMode === 'scale' ? '#ff0055' : '#222', flex: 1 }} onClick={() => setGizmoMode('scale')}>Scale</button>
-          </div>
-        </div>
-
-        <div className="sidebar-section">
-          <h4 className="sidebar-title">Architecture Stats</h4>
-          <p style={{ fontSize: '13px', color: '#aaa' }}>Walls: {Math.max(0, nodes2D.length - 1)}</p>
-          <p style={{ fontSize: '13px', color: '#aaa' }}>Props: {sceneObjects.length}</p>
-          <button className="toggle-btn" style={{ width: '100%', marginTop: '10px' }} onClick={() => setNodes2D([])}>🗑️ Clear Walls</button>
-        </div>
-      </div>
-
-      {/* 💬 TAB 1: CHAT */}
-      {activeTab === 'Chat' && (
-        <div className="ui-overlay">
-          <div className="chat-container">
-            {chatLog.map((log, i) => (
-              <div key={i} className={`chat-bubble ${log.sender}`}>{log.sender === 'ai' ? '🏗️ : ' : '👤 : '} {log.text}</div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 📐 TAB 2: 2D BLUEPRINT */}
       {activeTab === '2D' && (
         <div className="ui-overlay">
-          <h2>Interactive Blueprint: {currentProject.name}</h2>
-          <p style={{ color: '#aaa' }}>Click the grid to draw locked concrete walls.</p>
+          <h2>Mansion Blueprint</h2>
+          <p style={{ color: '#aaa' }}>Draw a room, SNAP it closed. Then click somewhere else to start a new room!</p>
           <div className="blueprint-paper" onClick={handle2DCanvasClick} style={{ position: 'relative' }}>
             <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
-              {nodes2D.map((node, i) => {
-                if (i === 0) return null;
-                const prev = nodes2D[i - 1];
-                const x1 = ((prev.x + 10) / 20) * 800; const y1 = ((prev.y + 10) / 20) * 400;
-                const x2 = ((node.x + 10) / 20) * 800; const y2 = ((node.y + 10) / 20) * 400;
-                return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#00ffcc" strokeWidth="3" />;
+              
+              {/* Draw all FINISHED Rooms */}
+              {rooms.map((room, roomIdx) => (
+                <g key={`room-${roomIdx}`}>
+                  {room.map((node, i) => {
+                    if (i === 0) return null;
+                    const prev = room[i - 1];
+                    return <line key={i} x1={((prev.x + 10) / 20) * 800} y1={((prev.y + 10) / 20) * 400} x2={((node.x + 10) / 20) * 800} y2={((node.y + 10) / 20) * 400} stroke="#00ffcc" strokeWidth="3" />;
+                  })}
+                </g>
+              ))}
+
+              {/* Draw the CURRENT Room being built */}
+              {currentRoom.map((node, i) => {
+                if (i === 0) return <circle key="start" cx={((node.x + 10) / 20) * 800} cy={((node.y + 10) / 20) * 400} r="6" fill="#ff0055" />;
+                const prev = currentRoom[i - 1];
+                return <line key={i} x1={((prev.x + 10) / 20) * 800} y1={((prev.y + 10) / 20) * 400} x2={((node.x + 10) / 20) * 800} y2={((node.y + 10) / 20) * 400} stroke="#ff0055" strokeWidth="3" strokeDasharray="5,5" />;
               })}
-              {nodes2D.map((node, i) => {
-                const cx = ((node.x + 10) / 20) * 800; const cy = ((node.y + 10) / 20) * 400;
-                return <circle key={`dot-${i}`} cx={cx} cy={cy} r="4" fill="white" />;
-              })}
+              {currentRoom.map((node, i) => <circle key={`dot-${i}`} cx={((node.x + 10) / 20) * 800} cy={((node.y + 10) / 20) * 400} r="4" fill="white" />)}
             </svg>
           </div>
+          <button className="build-btn" onClick={() => { setRooms([]); setCurrentRoom([]); }}>🗑️ Clear All Rooms</button>
         </div>
       )}
 
-      {/* 🎮 TAB 3: 3D EXTRUSION & GIZMO (Now Optimized!) */}
-      {/* Notice we added {activeTab === '3D' && ...} so the engine completely turns off when you leave! */}
       {activeTab === '3D' && (
         <div style={{ position: 'absolute', top: '0', left: 0, right: 0, bottom: 0, zIndex: 1 }}>
           <Canvas shadows="basic" camera={{ position: [15, 15, 15], fov: 40 }} onPointerMissed={() => setSelectedId(null)}>
-            <ambientLight intensity={0.5} />
-            <spotLight position={[10, 20, 10]} angle={0.3} penumbra={1} intensity={2} castShadow />
-            <Environment preset="city" background blur={0.5} />
-            <Grid infiniteGrid sectionColor="#00ffcc" cellColor="#111" fadeDistance={50} />
-            <OrbitControls makeDefault minDistance={5} maxDistance={50} />
-            
-           <Suspense fallback={null}>
-            
-            {/* 🏠 1. The Floor and Roof */}
-            <FloorAndRoof nodes={nodes2D} />
+            <ambientLight intensity={0.5} /><spotLight position={[10, 20, 10]} angle={0.3} penumbra={1} intensity={2} castShadow />
+            <Environment preset="city" background blur={0.5} /><OrbitControls makeDefault minDistance={5} maxDistance={50} />
+            <Suspense fallback={null}>
+              
+              {/* Loop through the Sketchbook and build EVERY finished room! */}
+              {rooms.map((room, roomIdx) => (
+                <group key={`build-${roomIdx}`}>
+                  <FloorAndRoof nodes={room} />
+                  {room.map((node, i) => {
+                    if (i === 0) return null;
+                    return <Wall key={`wall-${i}`} start={room[i-1]} end={node} wallIndex={i} />;
+                  })}
+                </group>
+              ))}
 
-            {/* 🧱 2. The Walls (Door, Window, and Concrete) */}
-            {nodes2D.map((node, i) => {
-              if (i === 0) return null;
-              return <Wall key={`wall-${i}`} start={nodes2D[i-1]} end={node} wallIndex={i} />;
-            })}
-            
-            {/* 🛋️ 3. The 3D Props (Furniture and Magic AI Boxes) */}
-            {sceneObjects.map(obj => (
-              <SceneItem key={obj.id} data={obj} isSelected={selectedId === obj.id} onSelect={setSelectedId} gizmoMode={gizmoMode} updateTransform={updateObjectTransform} />
-            ))}
-
-          </Suspense>
+              {sceneObjects.map(obj => <SceneItem key={obj.id} data={obj} isSelected={selectedId === obj.id} onSelect={setSelectedId} gizmoMode={gizmoMode} updateTransform={sceneObjects} />)}
+            </Suspense>
           </Canvas>
         </div>
       )}
 
-      {/* 🎬 TAB 4: ANIMATION */}
-      {activeTab === 'Anim' && (
-        <div className="ui-overlay">
-          <h2>Director's Timeline</h2>
-          <p style={{ color: '#888' }}>Set up cinematic camera tracking paths.</p>
-          <div style={{ width: '80%', height: '100px', background: '#222', margin: '20px auto', borderRadius: '8px', border: '1px solid #444', display: 'flex', alignItems: 'center', padding: '10px' }}>
-             <div style={{ width: '20%', background: '#00ffcc', height: '10px', borderRadius: '5px' }}></div>
-             <span style={{ marginLeft: '10px', fontSize: '12px', color: '#aaa' }}>Camera Path A (Kitchen Walkthrough)</span>
-          </div>
-        </div>
-      )}
-
-      {/* 📊 TAB 5: CANVA PRESENTATION RESTORED */}
       {activeTab === 'Pres' && (
         <div className="ui-overlay">
-          <div style={{ width: '100%', maxWidth: '1200px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2>Slide Studio: {currentProject.name}</h2>
-            <div style={{ display: 'flex', gap: '10px' }}>
-               <button className="build-btn" style={{ background: '#ff0055', color: 'white' }}>🎬 Render Video (Female Voice)</button>
-               <button className="build-btn">⬇️ Download PDF</button>
-            </div>
+          <div className="active-slide" style={{ width: '800px', background: 'white', padding: '40px', color: 'black' }}>
+             <h2>Project Proposal</h2>
+             <div style={{ marginTop: '20px', padding: '15px', background: '#f9f9f9', borderRadius: '8px' }}>
+                <strong>📊 Live Multi-Room Data:</strong><br/><br/>
+                * Total Rooms Built: {rooms.length}<br/>
+                * 📏 Estimated Mansion Area: <strong style={{color: '#ff0055'}}>{Math.round(calculateArea(rooms, currentRoom))} Sq Ft</strong>
+             </div>
           </div>
-          <div className="canva-workspace">
-            <div className="slide-sidebar">
-              <div className="slide-thumbnail active"><strong>Slide 1</strong><span>Cover Page</span></div>
-              <div className="slide-thumbnail"><strong>Slide 2</strong><span>2D Blueprint</span></div>
-              <div className="slide-thumbnail"><strong>Slide 3</strong><span>Data & Cost</span></div>
-            </div>
-            <div className="slide-canvas-container">
-              <div className="active-slide">
-                <div className="editable-text slide-title" contentEditable suppressContentEditableWarning>{currentProject.name} Proposal</div>
-                <div className="editable-text slide-subtitle" contentEditable suppressContentEditableWarning>Prepared by Pictopulse Architecture AI</div>
-                
-                {/* 1. The Typing Box (You can type here, React won't touch it!) */}
-                <div className="editable-text" style={{ fontSize: '14px', color: '#333', marginTop: '20px', minHeight: '50px' }} contentEditable suppressContentEditableWarning>
-                  This presentation outlines the structural and spatial design. The following slides contain the CAD blueprints, 3D renders, and the bill of materials.
-                </div>
-
-                {/* 2. The Math Robot Box (React updates this instantly!) */}
-                <div style={{ marginTop: '20px', padding: '15px', background: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee', fontSize: '14px', color: '#111' }}>
-                  <strong>📊 Live Project Data:</strong><br/><br/>
-                  * Total Walls: {Math.max(0, nodes2D.length - 1)}<br/>
-                  * Total 3D Props: {sceneObjects.length}<br/>
-                  * 📏 Estimated Area: <strong style={{color: '#ff0055'}}>{Math.round(calculateArea(nodes2D))} Square Feet</strong>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ⌨️ COMMAND BAR */}
-      {(activeTab === 'Chat' || activeTab === '3D') && (
-        <div className="floating-command">
-           <input className="magic-input" placeholder="Type a prompt to build props..." value={prompt} onChange={(e) => setPrompt(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleBuild()} />
-           <button className="build-btn" onClick={handleBuild}>Send</button>
         </div>
       )}
     </div>

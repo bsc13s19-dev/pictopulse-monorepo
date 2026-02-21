@@ -23,15 +23,15 @@ function calculateArea(nodes) {
   return Math.abs(area / 2) * 15; 
 }
 
-// 🧱 THE BULLETPROOF LEGO WALL BUILDER (No crashing!)
-function Wall({ start, end }) {
+// 🧱 THE BULLETPROOF LEGO WALL BUILDER (Now with Name Tags!)
+function Wall({ start, end, wallIndex }) {
   const dx = end.x - start.x; const dz = end.y - start.y;
   const length = Math.sqrt(dx * dx + dz * dz);
   const angle = Math.atan2(dz, dx);
   const midX = (start.x + end.x) / 2; const midZ = (start.y + end.y) / 2;
 
-  // 1. If the wall is super short, just build one solid block!
-  if (length < 4) {
+  // 1. If it is NOT the first wall (or if it's too short), build a SOLID block!
+  if (wallIndex !== 1 || length < 4) {
     return (
       <mesh position={[midX, 1.5, midZ]} rotation={[0, -angle, 0]} castShadow receiveShadow>
         <boxGeometry args={[length, 3, 0.2]} />
@@ -40,33 +40,28 @@ function Wall({ start, end }) {
     );
   }
 
-  // 2. If the wall is long, we use the LEGO TRICK (3 pieces to leave a hole!)
+  // 2. If it IS Wall #1, use the LEGO TRICK to build a Doorway!
   const doorWidth = 1.2;
-  const sideLength = (length - doorWidth) / 2; // Math to cut the wall in half!
-  const sideOffset = (length / 2) - (sideLength / 2); // How far to push the pieces apart
+  const sideLength = (length - doorWidth) / 2; 
+  const sideOffset = (length / 2) - (sideLength / 2); 
 
   return (
     <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
-      
-      {/* 🧱 Left Wall Piece */}
+      {/* Left Wall */}
       <mesh position={[-sideOffset, 1.5, 0]} castShadow receiveShadow>
         <boxGeometry args={[sideLength, 3, 0.2]} />
         <meshStandardMaterial color="#eeeeee" roughness={0.8} />
       </mesh>
-      
-      {/* 🧱 Right Wall Piece */}
+      {/* Right Wall */}
       <mesh position={[sideOffset, 1.5, 0]} castShadow receiveShadow>
         <boxGeometry args={[sideLength, 3, 0.2]} />
         <meshStandardMaterial color="#eeeeee" roughness={0.8} />
       </mesh>
-
-      {/* 🧱 Top Header Piece (Floating above the door!) */}
+      {/* Top Header */}
       <mesh position={[0, 2.5, 0]} castShadow receiveShadow>
-        {/* Height is 1, so it fills the gap above the 2-foot-tall door */}
         <boxGeometry args={[doorWidth, 1, 0.2]} />
         <meshStandardMaterial color="#eeeeee" roughness={0.8} />
       </mesh>
-
     </group>
   );
 }
@@ -310,10 +305,13 @@ export default function App() {
             <OrbitControls makeDefault minDistance={5} maxDistance={50} />
             
             <Suspense fallback={null}>
+              {/* Render the Locked Concrete Walls with Name Tags! */}
               {nodes2D.map((node, i) => {
                 if (i === 0) return null;
-                return <Wall key={`wall-${i}`} start={nodes2D[i-1]} end={node} />;
+                return <Wall key={`wall-${i}`} start={nodes2D[i-1]} end={node} wallIndex={i} />;
               })}
+              
+              {/* Render the AI Props */}
               {sceneObjects.map(obj => (
                 <SceneItem key={obj.id} data={obj} isSelected={selectedId === obj.id} onSelect={setSelectedId} gizmoMode={gizmoMode} updateTransform={updateObjectTransform} />
               ))}

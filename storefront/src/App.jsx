@@ -24,35 +24,51 @@ function calculateArea(nodes) {
   return Math.abs(area / 2) * 15; 
 }
 
-// 🧱 1. THE LOCKED 3D WALL BUILDER (Now with Doors!)
+// 🧱 THE BULLETPROOF LEGO WALL BUILDER (No crashing!)
 function Wall({ start, end }) {
   const dx = end.x - start.x; const dz = end.y - start.y;
   const length = Math.sqrt(dx * dx + dz * dz);
   const angle = Math.atan2(dz, dx);
   const midX = (start.x + end.x) / 2; const midZ = (start.y + end.y) / 2;
 
-  return (
-    <mesh position={[midX, 1.5, midZ]} rotation={[0, -angle, 0]} castShadow receiveShadow>
-      {/* 🪄 THE MAGIC COOKIE CUTTER ENGINE */}
-      <Geometry>
-        
-        {/* 1. THE DOUGH: Our solid concrete wall */}
-        <Base>
-          <boxGeometry args={[length, 3, 0.2]} />
-        </Base>
-        
-        {/* 2. THE CUTTER: We only punch a door if the wall is long enough! */}
-        {length > 4 && (
-          // We move the door down a little bit so it touches the floor (y: -0.5)
-          <Subtraction position={[0, -0.5, 0]}>
-            {/* The Door Shape: 1.2 wide, 2 tall, and thicker than the wall (0.5) so it punches all the way through! */}
-            <boxGeometry args={[1.2, 2, 0.5]} />
-          </Subtraction>
-        )}
+  // 1. If the wall is super short, just build one solid block!
+  if (length < 4) {
+    return (
+      <mesh position={[midX, 1.5, midZ]} rotation={[0, -angle, 0]} castShadow receiveShadow>
+        <boxGeometry args={[length, 3, 0.2]} />
+        <meshStandardMaterial color="#eeeeee" roughness={0.8} />
+      </mesh>
+    );
+  }
 
-      </Geometry>
-      <meshStandardMaterial color="#eeeeee" roughness={0.8} />
-    </mesh>
+  // 2. If the wall is long, we use the LEGO TRICK (3 pieces to leave a hole!)
+  const doorWidth = 1.2;
+  const sideLength = (length - doorWidth) / 2; // Math to cut the wall in half!
+  const sideOffset = (length / 2) - (sideLength / 2); // How far to push the pieces apart
+
+  return (
+    <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
+      
+      {/* 🧱 Left Wall Piece */}
+      <mesh position={[-sideOffset, 1.5, 0]} castShadow receiveShadow>
+        <boxGeometry args={[sideLength, 3, 0.2]} />
+        <meshStandardMaterial color="#eeeeee" roughness={0.8} />
+      </mesh>
+      
+      {/* 🧱 Right Wall Piece */}
+      <mesh position={[sideOffset, 1.5, 0]} castShadow receiveShadow>
+        <boxGeometry args={[sideLength, 3, 0.2]} />
+        <meshStandardMaterial color="#eeeeee" roughness={0.8} />
+      </mesh>
+
+      {/* 🧱 Top Header Piece (Floating above the door!) */}
+      <mesh position={[0, 2.5, 0]} castShadow receiveShadow>
+        {/* Height is 1, so it fills the gap above the 2-foot-tall door */}
+        <boxGeometry args={[doorWidth, 1, 0.2]} />
+        <meshStandardMaterial color="#eeeeee" roughness={0.8} />
+      </mesh>
+
+    </group>
   );
 }
 

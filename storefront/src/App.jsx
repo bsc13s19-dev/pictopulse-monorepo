@@ -71,10 +71,19 @@ function Wall({ start, end, wallIndex }) {
   }
   // 🧱 Normal Wall
   return (
-    <mesh position={[midX, 1.5, midZ]} rotation={[0, -angle, 0]} castShadow receiveShadow>
-      <boxGeometry args={[length, 3, 0.2]} />
-      <meshStandardMaterial color="#eeeeee" roughness={0.8} />
-    </mesh>
+    <group>
+      {/* 🪵 Floor lifted to 0.05 so it doesn't blink with the grid */}
+      <mesh position={[0, 0.05, 0]} rotation={[Math.PI / 2, 0, 0]} receiveShadow>
+        <shapeGeometry args={[shape]} />
+        <meshStandardMaterial color="#8B5A2B" roughness={1} side={THREE.DoubleSide} />
+      </mesh>
+      
+      {/* ☂️ ROOF LIFTED TO 3.05 so it doesn't fight the walls! */}
+      <mesh position={[0, 3.05, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+        <shapeGeometry args={[shape]} />
+        <meshStandardMaterial color="#222222" roughness={0.9} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
   );
 }
 
@@ -254,6 +263,18 @@ export default function App() {
         </div>
       )}
 
+{/* 🎬 TAB 4: ANIMATION (Restored!) */}
+      {activeTab === 'Anim' && (
+        <div className="ui-overlay">
+          <h2>Director's Timeline</h2>
+          <p style={{ color: '#888' }}>Set up cinematic camera tracking paths.</p>
+          <div style={{ width: '80%', height: '100px', background: '#222', margin: '20px auto', borderRadius: '8px', border: '1px solid #444', display: 'flex', alignItems: 'center', padding: '10px' }}>
+             <div style={{ width: '20%', background: '#00ffcc', height: '10px', borderRadius: '5px' }}></div>
+             <span style={{ marginLeft: '10px', fontSize: '12px', color: '#aaa' }}>Camera Path A (Kitchen Walkthrough)</span>
+          </div>
+        </div>
+      )}
+      
       {activeTab === 'Pres' && (
         <div className="ui-overlay">
           <div className="active-slide" style={{ width: '800px', background: 'white', padding: '40px', color: 'black' }}>
